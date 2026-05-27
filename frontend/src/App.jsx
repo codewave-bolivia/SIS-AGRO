@@ -4,6 +4,7 @@ import { AbilityProvider } from './contexts/AbilityContext';
 import { ThemeProvider }   from './contexts/ThemeContext'; 
 import ProtectedRoute      from './components/ProtectedRoute';
 import Sidebar             from './components/sidebar';
+import PwaPrompt           from './components/PwaPrompt';
 
 // ── Pages ────────────────────────────────────────────────────────────────
 import Login        from './pages/Login';
@@ -65,6 +66,8 @@ export default function App() {
       <ThemeProvider>
       <AuthProvider>
         <AbilityProvider>
+          {/* Notificaciones PWA: offline banner, update prompt, ready toast */}
+          <PwaPrompt />
           <Routes>
 
             {/* ── Rutas públicas ──────────────────────────────────────── */}
