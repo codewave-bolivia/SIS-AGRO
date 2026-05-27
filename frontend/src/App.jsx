@@ -21,7 +21,10 @@ import NuevaCompra    from './pages/compras/NuevaCompra';
 import Almacen        from './pages/almacen/Almacen';
 import HistorialVentas from './pages/ventas/HistorialVentas';
 import NuevaVenta     from './pages/ventas/NuevaVenta';
+import VentaTicket    from './pages/ventas/VentaTicket';
+import Caja           from './pages/caja/Caja';
 import LayoutReportes from './pages/reportes/LayoutReportes';
+import Backups        from './pages/backups/Backups';
 
 // Nota: Reportes/Órdenes de salida aún no están integrados aquí.
 
@@ -147,11 +150,30 @@ export default function App() {
                 <NuevaVenta />
               </PageRoute>
             }/>
+            <Route path="/ventas/:id/ticket" element={
+              <ProtectedRoute action="ver" subject="ventas">
+                <VentaTicket />
+              </ProtectedRoute>
+            }/>
+
+            {/* ── Caja ───────────────────────────────────────────────── */}
+            <Route path="/caja" element={
+              <PageRoute action="ver" subject="caja">
+                <Caja />
+              </PageRoute>
+            }/>
 
             {/* ── Reportes ───────────────────────────────────────────── */}
             <Route path="/reportes" element={
               <PageRoute action="ver" subject="reportes">
                 <LayoutReportes />
+              </PageRoute>
+            }/>
+
+            {/* ── Backups ────────────────────────────────────────────── */}
+            <Route path="/backups" element={
+              <PageRoute action="ver" subject="roles">
+                <Backups />
               </PageRoute>
             }/>
 
