@@ -214,14 +214,14 @@ const obtenerReporteInventario = async (req, res) => {
         break;
 
       case 'stock_bajo':
-        // Definiremos stock bajo arbitrario si no existe en BD, ej. <= 10
         query = `
-          SELECT p.id_producto, p.nombre, p.codigo_barras, SUM(l.stock_unidades) as stock_total_unidades
+          SELECT p.id_producto, p.nombre, p.codigo_barras, p.stock_minimo,
+                 SUM(l.stock_unidades) as stock_total_unidades
           FROM lote l
           JOIN producto p ON l.id_producto = p.id_producto
           WHERE l.id_sucursal = ? AND l.activo = 1
-          GROUP BY p.id_producto, p.nombre, p.codigo_barras
-          HAVING stock_total_unidades <= 10
+          GROUP BY p.id_producto, p.nombre, p.codigo_barras, p.stock_minimo
+          HAVING stock_total_unidades <= p.stock_minimo
           ORDER BY stock_total_unidades ASC
         `;
         params.push(sucursalId);
@@ -277,28 +277,49 @@ const obtenerReporteInventario = async (req, res) => {
 // MÓDULO DE GANANCIAS (Dashboard original mantenido para UI)
 // ==========================================
 const obtenerResumenFinanciero = async (req, res) => {
-  // Lógica anterior que ya creamos (se mantiene igual o se refactoriza)
-  // ... [Omitida por brevedad, asumimos que sigue igual o se le añaden fechas]
+  const { fechaInicio, fechaFin } = req.query;
+  const sucursalId = req.query.id_sucursal || req.user?.id_sucursal;
+
   try {
-    const [ventasRows] = await db.promise().query(`
-      SELECT COALESCE(SUM(total), 0) as total_ventas
-      FROM venta WHERE estado = 'COMPLETADA' AND MONTH(fecha_venta) = MONTH(CURDATE()) AND YEAR(fecha_venta) = YEAR(CURDATE())
-    `);
-    const [comprasRows] = await db.promise().query(`
-      SELECT COALESCE(SUM(total), 0) as total_compras
-      FROM compra WHERE estado != 'ANULADA' AND MONTH(fecha_compra) = MONTH(CURDATE()) AND YEAR(fecha_compra) = YEAR(CURDATE())
-    `);
-    const [ventasHoyRows] = await db.promise().query(`
-      SELECT COUNT(*) as cantidad_ventas_hoy, COALESCE(SUM(total), 0) as ingresos_hoy
-      FROM venta WHERE estado = 'COMPLETADA' AND DATE(fecha_venta) = CURDATE()
-    `);
+    let ventaFechaClause = '';
+    let ventaFechaParams = [];
+    let compraFechaClause = '';
+    let compraFechaParams = [];
+
+    if (fechaInicio && fechaFin) {
+      ventaFechaClause  = 'AND DATE(fecha_venta)  BETWEEN ? AND ?';
+      ventaFechaParams  = [fechaInicio, fechaFin];
+      compraFechaClause = 'AND DATE(fecha_compra) BETWEEN ? AND ?';
+      compraFechaParams = [fechaInicio, fechaFin];
+    } else {
+      ventaFechaClause  = 'AND MONTH(fecha_venta)  = MONTH(CURDATE()) AND YEAR(fecha_venta)  = YEAR(CURDATE())';
+      compraFechaClause = 'AND MONTH(fecha_compra) = MONTH(CURDATE()) AND YEAR(fecha_compra) = YEAR(CURDATE())';
+    }
+
+    const [ventasRows] = await db.promise().query(
+      `SELECT COALESCE(SUM(total), 0) as total_ventas
+       FROM venta WHERE estado = 'COMPLETADA' AND id_sucursal = ? ${ventaFechaClause}`,
+      [sucursalId, ...ventaFechaParams]
+    );
+
+    const [comprasRows] = await db.promise().query(
+      `SELECT COALESCE(SUM(total), 0) as total_compras
+       FROM compra WHERE estado != 'CANCELADO' AND id_sucursal = ? ${compraFechaClause}`,
+      [sucursalId, ...compraFechaParams]
+    );
+
+    const [ventasHoyRows] = await db.promise().query(
+      `SELECT COUNT(*) as cantidad_ventas_hoy, COALESCE(SUM(total), 0) as ingresos_hoy
+       FROM venta WHERE estado = 'COMPLETADA' AND id_sucursal = ? AND DATE(fecha_venta) = CURDATE()`,
+      [sucursalId]
+    );
 
     return res.json({
-      ingresos_mes: ventasRows[0].total_ventas,
-      egresos_mes: comprasRows[0].total_compras,
-      utilidad_bruta_mes: ventasRows[0].total_ventas - comprasRows[0].total_compras,
+      ingresos_mes:        ventasRows[0].total_ventas,
+      egresos_mes:         comprasRows[0].total_compras,
+      utilidad_bruta_mes:  ventasRows[0].total_ventas - comprasRows[0].total_compras,
       ventas_hoy_cantidad: ventasHoyRows[0].cantidad_ventas_hoy,
-      ingresos_hoy: ventasHoyRows[0].ingresos_hoy
+      ingresos_hoy:        ventasHoyRows[0].ingresos_hoy
     });
   } catch (err) {
     return res.status(500).json({ error: err.message });
@@ -306,6 +327,10 @@ const obtenerResumenFinanciero = async (req, res) => {
 };
 
 const obtenerTopProductos = async (req, res) => {
+  const { id_sucursal, ordenar_por } = req.query;
+  const sucursalId = id_sucursal || req.user?.id_sucursal;
+  const orderColumn = ordenar_por === 'ingresos' ? 'ingresos_generados' : 'unidades_vendidas';
+
   try {
     const [rows] = await db.promise().query(`
       SELECT p.id_producto, p.nombre, p.codigo_barras,
@@ -315,10 +340,11 @@ const obtenerTopProductos = async (req, res) => {
       JOIN venta v ON d.id_venta = v.id_venta
       JOIN producto p ON d.id_producto = p.id_producto
       JOIN lote l ON d.id_lote = l.id_lote
-      WHERE v.estado = 'COMPLETADA'
+      WHERE v.estado = 'COMPLETADA' AND v.id_sucursal = ?
       GROUP BY p.id_producto, p.nombre, p.codigo_barras
-      ORDER BY unidades_vendidas DESC LIMIT 5
-    `);
+      ORDER BY ${orderColumn} DESC LIMIT 10
+    `, [sucursalId]);
+
     return res.json(rows);
   } catch (err) {
     return res.status(500).json({ error: err.message });
@@ -454,9 +480,17 @@ const obtenerReporteComparativoSucursales = async (req, res) => {
       SELECT s.id_sucursal, s.nombre as sucursal, s.ciudad,
         COUNT(DISTINCT v.id_venta) as total_ventas,
         COALESCE(SUM(v.total), 0) as total_ingresos,
-        COALESCE(SUM(v.descuento_total), 0) as total_descuentos
+        COALESCE(SUM(v.descuento_total), 0) as total_descuentos,
+        COALESCE(SUM(v.total), 0) - COALESCE(SUM(
+          CASE WHEN dv.tipo_cantidad = 'CAJA'
+            THEN dv.cantidad * l.precio_por_caja
+            ELSE dv.cantidad * (l.precio_por_caja / l.unidades_por_caja)
+          END
+        ), 0) as ganancia_bruta
       FROM sucursal s
       LEFT JOIN venta v ON s.id_sucursal = v.id_sucursal AND ${ventaJoinWhere}
+      LEFT JOIN detalle_venta dv ON v.id_venta = dv.id_venta
+      LEFT JOIN lote l ON dv.id_lote = l.id_lote
       WHERE s.activo = 1
       GROUP BY s.id_sucursal, s.nombre, s.ciudad
       ORDER BY total_ingresos DESC

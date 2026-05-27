@@ -15,7 +15,28 @@ const MENU_ITEMS = [
   { label: 'Caja',              path: '/caja',           icono: '🏧', action: 'ver',             subject: 'caja' },
   { label: 'Compras / Ingresos',path: '/compras',        icono: '🛒', action: 'ver',             subject: 'compras' },
   { label: 'Almacén (Stock)',   path: '/almacen',        icono: '📦', action: 'ver',             subject: 'almacen' },
-  { label: 'Reportes',          path: '/reportes',       icono: '📈', action: 'ver',             subject: 'reportes' },
+  { label: 'Reportes',          path: '/reportes',       icono: '📈', action: null, subject: null,
+    anyPermission: [
+      { action: 'ventas_diarias',        subject: 'reportes' },
+      { action: 'ventas_rango',          subject: 'reportes' },
+      { action: 'ventas_vendedor',       subject: 'reportes' },
+      { action: 'ventas_producto',       subject: 'reportes' },
+      { action: 'ventas_cliente',        subject: 'reportes' },
+      { action: 'compras',               subject: 'reportes' },
+      { action: 'compras_proveedor',     subject: 'reportes' },
+      { action: 'inventario',            subject: 'reportes' },
+      { action: 'inventario_valorizado', subject: 'reportes' },
+      { action: 'ganancias',             subject: 'reportes' },
+      { action: 'ganancias_producto',    subject: 'reportes' },
+      { action: 'top_productos',         subject: 'reportes' },
+      { action: 'vencimientos',          subject: 'reportes' },
+      { action: 'stock_bajo',            subject: 'reportes' },
+      { action: 'kardex',                subject: 'reportes' },
+      { action: 'traslados',             subject: 'reportes' },
+      { action: 'comparativo_sucursales',subject: 'reportes' },
+      { action: 'caja',                  subject: 'reportes' },
+    ]
+  },
   { label: 'Sucursales',        path: '/sucursales',     icono: '🏢', action: 'ver',             subject: 'sucursales' },
   { label: 'Usuarios',          path: '/usuarios',       icono: '👥', action: 'ver',             subject: 'usuarios' },
   { label: 'Roles y Permisos',  path: '/roles',          icono: '🔐', action: 'ver',             subject: 'roles' },
@@ -86,7 +107,8 @@ function SidebarContent({ onClose }) {
     navigate('/login');
   };
 
-  const itemsVisibles = MENU_ITEMS.filter(({ action, subject }) => {
+  const itemsVisibles = MENU_ITEMS.filter(({ action, subject, anyPermission }) => {
+    if (anyPermission) return anyPermission.some(p => puede(p.action, p.subject));
     if (!action || !subject) return true;
     return puede(action, subject);
   });

@@ -165,10 +165,32 @@ export default function App() {
             }/>
 
             {/* ── Reportes ───────────────────────────────────────────── */}
+            {/* No existe 'reportes.ver' en BD; acceso si tiene cualquier permiso de reportes */}
             <Route path="/reportes" element={
-              <PageRoute action="ver" subject="reportes">
-                <LayoutReportes />
-              </PageRoute>
+              <ProtectedRoute anyPermission={[
+                { action: 'ventas_diarias',        subject: 'reportes' },
+                { action: 'ventas_rango',          subject: 'reportes' },
+                { action: 'ventas_vendedor',       subject: 'reportes' },
+                { action: 'ventas_producto',       subject: 'reportes' },
+                { action: 'ventas_cliente',        subject: 'reportes' },
+                { action: 'compras',               subject: 'reportes' },
+                { action: 'compras_proveedor',     subject: 'reportes' },
+                { action: 'inventario',            subject: 'reportes' },
+                { action: 'inventario_valorizado', subject: 'reportes' },
+                { action: 'ganancias',             subject: 'reportes' },
+                { action: 'ganancias_producto',    subject: 'reportes' },
+                { action: 'top_productos',         subject: 'reportes' },
+                { action: 'vencimientos',          subject: 'reportes' },
+                { action: 'stock_bajo',            subject: 'reportes' },
+                { action: 'kardex',                subject: 'reportes' },
+                { action: 'traslados',             subject: 'reportes' },
+                { action: 'comparativo_sucursales',subject: 'reportes' },
+                { action: 'caja',                  subject: 'reportes' },
+              ]}>
+                <AppLayout>
+                  <LayoutReportes />
+                </AppLayout>
+              </ProtectedRoute>
             }/>
 
             {/* ── Backups ────────────────────────────────────────────── */}

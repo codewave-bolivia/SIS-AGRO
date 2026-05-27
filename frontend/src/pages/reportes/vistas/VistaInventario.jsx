@@ -84,6 +84,7 @@ export default function VistaInventario() {
         return [
           { key: 'codigo_barras', header: 'Código' },
           { key: 'nombre', header: 'Producto' },
+          { key: 'stock_minimo', header: 'Mínimo', align: 'center', excelValue: r => r.stock_minimo },
           { key: 'stock_total_unidades', header: 'Stock Actual', align: 'center', render: v => <span className="font-bold text-red-600">{v} u</span>, excelValue: r => r.stock_total_unidades }
         ];
       case 'vencimientos':

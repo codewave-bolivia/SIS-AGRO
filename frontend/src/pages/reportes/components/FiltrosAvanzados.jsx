@@ -3,8 +3,8 @@ export default function FiltrosAvanzados({
   setFiltros, 
   onBuscar, 
   cargando,
-  opciones = { fechas: true, clientes: false, productos: false, vendedores: false, proveedores: false },
-  catalogos = { clientes: [], productos: [], usuarios: [], proveedores: [] }
+  opciones = { fechas: true, clientes: false, productos: false, vendedores: false, proveedores: false, sucursales: false },
+  catalogos = { clientes: [], productos: [], usuarios: [], proveedores: [], sucursales: [] }
 }) {
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -93,14 +93,29 @@ export default function FiltrosAvanzados({
         {opciones.proveedores && (
           <div>
             <label className="block text-xs text-zinc-500 mb-1">Proveedor</label>
-            <select 
-              name="id_proveedor" 
-              value={filtros.id_proveedor || ''} 
+            <select
+              name="id_proveedor"
+              value={filtros.id_proveedor || ''}
               onChange={handleChange}
               className="w-full px-3 py-1.5 text-sm bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500"
             >
               <option value="">Todos los proveedores</option>
               {catalogos.proveedores?.map(p => <option key={p.id_proveedor} value={p.id_proveedor}>{p.empresa}</option>)}
+            </select>
+          </div>
+        )}
+
+        {opciones.sucursales && (
+          <div>
+            <label className="block text-xs text-zinc-500 mb-1">Sucursal</label>
+            <select
+              name="id_sucursal"
+              value={filtros.id_sucursal || ''}
+              onChange={handleChange}
+              className="w-full px-3 py-1.5 text-sm bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500"
+            >
+              <option value="">Todas las sucursales</option>
+              {catalogos.sucursales?.map(s => <option key={s.id_sucursal} value={s.id_sucursal}>{s.nombre}</option>)}
             </select>
           </div>
         )}

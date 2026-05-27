@@ -72,7 +72,10 @@ export default function VistaSucursales() {
     { key: 'ciudad', header: 'Ciudad', render: v => v || 'N/A' },
     { key: 'total_ventas', header: 'Nro Ventas', align: 'center' },
     { key: 'total_ingresos', header: 'Ingresos (Bs)', align: 'right', render: v => parseFloat(v).toFixed(2), excelValue: r => parseFloat(r.total_ingresos) },
-    { key: 'total_descuentos', header: 'Descuentos (Bs)', align: 'right', render: v => parseFloat(v).toFixed(2), excelValue: r => parseFloat(r.total_descuentos) }
+    { key: 'total_descuentos', header: 'Descuentos (Bs)', align: 'right', render: v => parseFloat(v).toFixed(2), excelValue: r => parseFloat(r.total_descuentos) },
+    { key: 'ganancia_bruta', header: 'Ganancia Bruta (Bs)', align: 'right',
+      render: v => <span className={parseFloat(v) >= 0 ? 'text-emerald-600 font-bold' : 'text-red-600 font-bold'}>{parseFloat(v).toFixed(2)}</span>,
+      excelValue: r => parseFloat(r.ganancia_bruta) }
   ];
 
   const columnas = activeTab === 'traslados' ? columnasTraslados : columnasComparativo;

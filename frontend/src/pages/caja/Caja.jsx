@@ -207,7 +207,10 @@ export default function Caja() {
         <div className="mb-6 p-4 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <p className="font-medium text-zinc-700 dark:text-zinc-300">Sin turno activo</p>
-            <p className="text-sm text-zinc-500">Abra un turno de caja para registrar ventas en esta sucursal.</p>
+            {cajas.some(c => c.activo == true || c.activo === 1)
+              ? <p className="text-sm text-zinc-500">Abra un turno de caja para registrar ventas en esta sucursal.</p>
+              : <p className="text-sm text-amber-600 dark:text-amber-400">⚠️ Primero cree una caja desde la pestaña <strong>Cajas</strong>.</p>
+            }
           </div>
           {puede('abrir', 'caja') && (
             <button

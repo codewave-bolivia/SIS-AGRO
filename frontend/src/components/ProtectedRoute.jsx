@@ -3,7 +3,7 @@ import { useAuth }        from '../contexts/AuthContext';
 import { usePermission }  from '../hooks/usePermission';
 
 /**
- * Guarda de rutas con dos niveles de protección:
+ * Guarda de rutas con tres niveles de protección:
  *
  * Nivel 1 — Solo autenticación:
  *   <ProtectedRoute>
@@ -14,11 +14,16 @@ import { usePermission }  from '../hooks/usePermission';
  *   <ProtectedRoute action="ver" subject="roles">
  *     <RolesPage />
  *   </ProtectedRoute>
+ *
+ * Nivel 3 — Autenticación + cualquiera de varios permisos (OR):
+ *   <ProtectedRoute anyPermission={[{ action: 'ventas_diarias', subject: 'reportes' }, ...]}>
+ *     <ReportesPage />
+ *   </ProtectedRoute>
  */
-export default function ProtectedRoute({ children, action, subject }) {
-  const { usuario }  = useAuth();
-  const { noPuede }  = usePermission();
-  const location     = useLocation();
+export default function ProtectedRoute({ children, action, subject, anyPermission }) {
+  const { usuario }        = useAuth();
+  const { noPuede, puede } = usePermission();
+  const location           = useLocation();
 
   // ── 1. No autenticado → redirigir al login ────────────────────────────
   // Guardamos la ruta actual para redirigir de vuelta tras el login
@@ -26,7 +31,16 @@ export default function ProtectedRoute({ children, action, subject }) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // ── 2. Sin permiso específico → página de acceso denegado ─────────────
+  // ── 2. anyPermission (OR) → acceso si tiene al menos uno ─────────────
+  if (anyPermission) {
+    const tieneAlguno = anyPermission.some(p => puede(p.action, p.subject));
+    if (!tieneAlguno) {
+      return <Navigate to="/sin-permiso" replace />;
+    }
+    return children;
+  }
+
+  // ── 3. Sin permiso específico → página de acceso denegado ─────────────
   if (action && subject && noPuede(action, subject)) {
     return <Navigate to="/sin-permiso" replace />;
   }

@@ -73,7 +73,9 @@ export function ModalCaja({ caja, onConfirm, onClose, guardando, sucursales = []
 export function ModalAbrirTurno({ cajas, onConfirm, onClose, guardando }) {
   const [form, setForm] = useState({ id_caja: '', monto_inicial: '', observaciones: '' });
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
-  const cajasActivas = cajas.filter(c => c.activo);
+  // activo puede venir como boolean (true/false) o number (1/0) según mysql2
+  const cajasActivas = cajas.filter(c => c.activo == true || c.activo === 1);
+  const sinCajas = cajasActivas.length === 0;
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -88,6 +90,26 @@ export function ModalAbrirTurno({ cajas, onConfirm, onClose, guardando }) {
           <h2 className="font-bold text-zinc-900 dark:text-white">Abrir Turno de Caja</h2>
           <button onClick={onClose} className="text-zinc-400 hover:text-zinc-600">✕</button>
         </div>
+
+        {/* Aviso prominente si no hay cajas disponibles */}
+        {sinCajas && (
+          <div className="mx-5 mt-5 p-4 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700">
+            <p className="text-sm font-semibold text-amber-800 dark:text-amber-300 mb-1">
+              ⚠️ No hay cajas activas registradas
+            </p>
+            <p className="text-xs text-amber-700 dark:text-amber-400">
+              Debe crear al menos una caja desde la pestaña <strong>"Cajas"</strong> antes de poder abrir un turno.
+            </p>
+            <button
+              type="button"
+              onClick={onClose}
+              className="mt-3 w-full py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-sm font-medium"
+            >
+              Entendido, ir a crear una caja
+            </button>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           <div>
             <label className="text-xs text-zinc-500 block mb-1">Caja *</label>
@@ -95,9 +117,10 @@ export function ModalAbrirTurno({ cajas, onConfirm, onClose, guardando }) {
               value={form.id_caja}
               onChange={e => set('id_caja', e.target.value)}
               required
-              className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-700 dark:bg-zinc-800 rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-500"
+              disabled={sinCajas}
+              className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-700 dark:bg-zinc-800 rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <option value="">Seleccionar caja...</option>
+              <option value="">{sinCajas ? 'Sin cajas disponibles' : 'Seleccionar caja...'}</option>
               {cajasActivas.map(c => <option key={c.id_caja} value={c.id_caja}>{c.nombre}</option>)}
             </select>
           </div>
@@ -109,7 +132,8 @@ export function ModalAbrirTurno({ cajas, onConfirm, onClose, guardando }) {
               step="0.01"
               value={form.monto_inicial}
               onChange={e => set('monto_inicial', e.target.value)}
-              className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-700 dark:bg-zinc-800 rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-500"
+              disabled={sinCajas}
+              className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-700 dark:bg-zinc-800 rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50"
               placeholder="0.00"
             />
           </div>
@@ -119,20 +143,20 @@ export function ModalAbrirTurno({ cajas, onConfirm, onClose, guardando }) {
               rows={2}
               value={form.observaciones}
               onChange={e => set('observaciones', e.target.value)}
-              className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-700 dark:bg-zinc-800 rounded-lg text-sm outline-none resize-none"
+              disabled={sinCajas}
+              className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-700 dark:bg-zinc-800 rounded-lg text-sm outline-none resize-none disabled:opacity-50"
               placeholder="Opcional"
             />
           </div>
-          <div className="flex gap-3 pt-2">
-            <button type="button" onClick={onClose} className="flex-1 py-2 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm font-medium">
-              Cancelar
-            </button>
-            <button type="submit" disabled={guardando || cajasActivas.length === 0} className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-medium disabled:opacity-50">
-              {guardando ? 'Abriendo...' : 'Abrir Turno'}
-            </button>
-          </div>
-          {cajasActivas.length === 0 && (
-            <p className="text-xs text-red-500 text-center">No hay cajas activas. Cree una caja primero.</p>
+          {!sinCajas && (
+            <div className="flex gap-3 pt-2">
+              <button type="button" onClick={onClose} className="flex-1 py-2 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm font-medium">
+                Cancelar
+              </button>
+              <button type="submit" disabled={guardando} className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-medium disabled:opacity-50">
+                {guardando ? 'Abriendo...' : 'Abrir Turno'}
+              </button>
+            </div>
           )}
         </form>
       </div>
