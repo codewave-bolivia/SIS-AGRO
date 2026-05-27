@@ -5,10 +5,10 @@ const fs   = require('fs');
 const listarProductos = async (req, res) => {
   try {
     const query = `
-      SELECT 
+      SELECT
         p.id_producto, p.id_clasificacion, p.id_marca, p.id_unidad,
-        p.nombre, p.descripcion, p.codigo_barras, 
-        p.precio_mayor, p.precio_menor, p.descuento_mayor, p.descuento_menor, 
+        p.nombre, p.descripcion, p.codigo_barras, p.imagen,
+        p.precio_mayor, p.precio_menor, p.descuento_mayor, p.descuento_menor,
         p.stock_minimo, p.activo, p.creado_en,
         c.nombre AS clasificacion_nombre,
         m.nombre AS marca_nombre,

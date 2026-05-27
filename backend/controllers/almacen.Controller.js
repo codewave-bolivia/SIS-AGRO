@@ -4,6 +4,7 @@ const listarLotes = async (req, res) => {
   try {
     const [rows] = await db.promise().query(
       `SELECT l.*, p.nombre as producto_nombre, p.codigo_barras, p.stock_minimo,
+              p.precio_menor, p.precio_mayor, p.descuento_menor, p.descuento_mayor,
               m.nombre as marca_nombre, c.nombre as clasificacion_nombre,
               s.nombre as sucursal_nombre
        FROM lote l

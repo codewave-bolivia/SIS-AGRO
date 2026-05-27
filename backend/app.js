@@ -16,7 +16,10 @@ const proveedoresRoutes = require('./routes/proveedores.Routes');
 const comprasRoutes     = require('./routes/compras.Routes');
 const almacenRoutes     = require('./routes/almacen.Routes');
 const ventasRoutes      = require('./routes/ventas.Routes');
+const cajaRoutes        = require('./routes/caja.Routes');
 const reportesRoutes    = require('./routes/reportes.Routes');
+const backupRoutes      = require('./routes/backup.Routes');
+const { iniciarScheduler } = require('./services/backup.service');
 const app = express();
 
 // ── CORS ──────────────────────────────────────────────────────────────────
@@ -49,11 +52,18 @@ app.use('/api/proveedores', proveedoresRoutes);
 app.use('/api/compras', comprasRoutes);
 app.use('/api/almacen', almacenRoutes);
 app.use('/api/ventas', ventasRoutes);
+app.use('/api/caja', cajaRoutes);
 app.use('/api/reportes', reportesRoutes);
+app.use('/api/backups',  backupRoutes);
 
 // ── Servidor ──────────────────────────────────────────────────────────────
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`✅ Conectado a la base de datos MySQL`);
-  console.log(`🚀 Servidor escuchando en puerto ${PORT}`);
-});
+if (process.env.NODE_ENV !== 'test') {
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`✅ Conectado a la base de datos MySQL`);
+    console.log(`🚀 Servidor escuchando en puerto ${PORT}`);
+    iniciarScheduler();
+  });
+}
+
+module.exports = app;

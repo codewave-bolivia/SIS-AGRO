@@ -23,12 +23,16 @@ const obtener = async (req, res) => {
   const { id } = req.params;
   try {
     const [ventaRows] = await db.promise().query(
-      `SELECT v.*, c.nombre as cliente_nombre, c.apellido as cliente_apellido, c.ci_nit, c.empresa,
-              u.nombre as usuario_nombre, u.apellido as usuario_apellido
+      `SELECT v.*,
+              c.nombre as cliente_nombre, c.apellido as cliente_apellido, c.ci_nit, c.empresa,
+              u.nombre as usuario_nombre, u.apellido as usuario_apellido,
+              s.nombre as sucursal_nombre, s.direccion as sucursal_direccion,
+              s.ciudad as sucursal_ciudad, s.telefono as sucursal_telefono
        FROM venta v
        LEFT JOIN cliente c ON v.id_cliente = c.id_cliente
        LEFT JOIN usuario u ON v.id_usuario = u.id_usuario
-       WHERE v.id_venta = ?`, 
+       LEFT JOIN sucursal s ON v.id_sucursal = s.id_sucursal
+       WHERE v.id_venta = ?`,
       [id]
     );
 
@@ -274,9 +278,45 @@ const anular = async (req, res) => {
   }
 };
 
+// Productos disponibles para el POS — agrupados por producto, stock de la sucursal del usuario
+const listarProductosPOS = async (req, res) => {
+  const id_sucursal = req.user.id_sucursal;
+  try {
+    const [rows] = await db.promise().query(
+      `SELECT
+         p.id_producto,
+         p.nombre,
+         p.codigo_barras,
+         p.precio_menor,
+         p.precio_mayor,
+         p.descuento_menor,
+         p.descuento_mayor,
+         MIN(l.unidades_por_caja) AS unidades_por_caja,
+         SUM(l.stock_unidades)   AS stock_unidades_total
+       FROM lote l
+       JOIN producto p ON l.id_producto = p.id_producto
+       WHERE l.id_sucursal = ?
+         AND l.activo = 1
+         AND l.stock_unidades > 0
+         AND p.activo = 1
+       GROUP BY
+         p.id_producto, p.nombre, p.codigo_barras,
+         p.precio_menor, p.precio_mayor,
+         p.descuento_menor, p.descuento_mayor
+       ORDER BY p.nombre ASC`,
+      [id_sucursal]
+    );
+    return res.json(rows);
+  } catch (err) {
+    console.error('[listarProductosPOS]', err);
+    return res.status(500).json({ error: 'Error al obtener productos para el POS' });
+  }
+};
+
 module.exports = {
   listar,
   obtener,
   crear,
-  anular
+  anular,
+  listarProductosPOS,
 };

@@ -12,12 +12,14 @@ const MENU_ITEMS = [
   { label: 'Clientes',          path: '/clientes',       icono: '🧑‍🌾', action: 'ver',             subject: 'clientes' },
   { label: 'Proveedores',       path: '/proveedores',    icono: '🤝', action: 'ver',             subject: 'proveedores' },
   { label: 'Ventas (POS)',      path: '/ventas',         icono: '🧾', action: 'ver',             subject: 'ventas' },
+  { label: 'Caja',              path: '/caja',           icono: '🏧', action: 'ver',             subject: 'caja' },
   { label: 'Compras / Ingresos',path: '/compras',        icono: '🛒', action: 'ver',             subject: 'compras' },
   { label: 'Almacén (Stock)',   path: '/almacen',        icono: '📦', action: 'ver',             subject: 'almacen' },
   { label: 'Reportes',          path: '/reportes',       icono: '📈', action: 'ver',             subject: 'reportes' },
   { label: 'Sucursales',        path: '/sucursales',     icono: '🏢', action: 'ver',             subject: 'sucursales' },
   { label: 'Usuarios',          path: '/usuarios',       icono: '👥', action: 'ver',             subject: 'usuarios' },
   { label: 'Roles y Permisos',  path: '/roles',          icono: '🔐', action: 'ver',             subject: 'roles' },
+  { label: 'Backups',           path: '/backups',        icono: '💾', action: 'ver',             subject: 'roles' },
 ];
 
 // ── Toggle tema ───────────────────────────────────────────────────────────

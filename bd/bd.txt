@@ -1,4 +1,4 @@
-MariaDB [bd_sistema_electrodomesticos]> use bd_agropecuaria;
+MariaDB [(none)]> use bd_agropecuaria;
 Database changed
 MariaDB [bd_agropecuaria]> show tables;
 +---------------------------+
@@ -44,7 +44,7 @@ MariaDB [bd_agropecuaria]> DESCRIBE apertura_cierre_caja;
 | estado         | enum('ABIERTA','CERRADA') | NO   |     | ABIERTA             |                |
 | observaciones  | text                      | YES  |     | NULL                |                |
 +----------------+---------------------------+------+-----+---------------------+----------------+
-12 rows in set (0.008 sec)
+12 rows in set (0.005 sec)
 
 MariaDB [bd_agropecuaria]> DESCRIBE caja;
 +-------------+-------------+------+-----+---------------------+----------------+
@@ -57,7 +57,7 @@ MariaDB [bd_agropecuaria]> DESCRIBE caja;
 | activo      | tinyint(1)  | NO   |     | 1                   |                |
 | creado_en   | datetime    | NO   |     | current_timestamp() |                |
 +-------------+-------------+------+-----+---------------------+----------------+
-6 rows in set (0.005 sec)
+6 rows in set (0.003 sec)
 
 MariaDB [bd_agropecuaria]> DESCRIBE clasificacion_producto;
 +------------------+-------------+------+-----+---------+----------------+
@@ -68,7 +68,7 @@ MariaDB [bd_agropecuaria]> DESCRIBE clasificacion_producto;
 | descripcion      | text        | YES  |     | NULL    |                |
 | activo           | tinyint(1)  | NO   |     | 1       |                |
 +------------------+-------------+------+-----+---------+----------------+
-4 rows in set (0.008 sec)
+4 rows in set (0.003 sec)
 
 MariaDB [bd_agropecuaria]> DESCRIBE cliente;
 +--------------+-------------------------------+------+-----+---------------------+----------------+
@@ -86,7 +86,7 @@ MariaDB [bd_agropecuaria]> DESCRIBE cliente;
 | activo       | tinyint(1)                    | NO   |     | 1                   |                |
 | creado_en    | datetime                      | NO   |     | current_timestamp() |                |
 +--------------+-------------------------------+------+-----+---------------------+----------------+
-11 rows in set (0.005 sec)
+11 rows in set (0.003 sec)
 
 MariaDB [bd_agropecuaria]> DESCRIBE compra;
 +---------------+------------------------------------------+------+-----+---------------------+----------------+
@@ -105,7 +105,7 @@ MariaDB [bd_agropecuaria]> DESCRIBE compra;
 | observaciones | text                                     | YES  |     | NULL                |                |
 | creado_en     | datetime                                 | NO   |     | current_timestamp() |                |
 +---------------+------------------------------------------+------+-----+---------------------+----------------+
-12 rows in set (0.006 sec)
+12 rows in set (0.004 sec)
 
 MariaDB [bd_agropecuaria]> DESCRIBE detalle_compra;
 +-------------------+---------------+------+-----+---------+----------------+
@@ -123,7 +123,7 @@ MariaDB [bd_agropecuaria]> DESCRIBE detalle_compra;
 | precio_por_caja   | decimal(12,2) | NO   |     | 0.00    |                |
 | subtotal          | decimal(14,2) | NO   |     | 0.00    |                |
 +-------------------+---------------+------+-----+---------+----------------+
-11 rows in set (0.003 sec)
+11 rows in set (0.002 sec)
 
 MariaDB [bd_agropecuaria]> DESCRIBE detalle_venta;
 +------------------+-----------------------+------+-----+---------+----------------+
@@ -140,7 +140,7 @@ MariaDB [bd_agropecuaria]> DESCRIBE detalle_venta;
 | descuento_monto  | decimal(12,2)         | NO   |     | 0.00    |                |
 | subtotal         | decimal(14,2)         | NO   |     | NULL    |                |
 +------------------+-----------------------+------+-----+---------+----------------+
-10 rows in set (0.005 sec)
+10 rows in set (0.004 sec)
 
 MariaDB [bd_agropecuaria]> DESCRIBE lote;
 +-----------------------+---------------+------+-----+---------------------+----------------+
@@ -162,7 +162,7 @@ MariaDB [bd_agropecuaria]> DESCRIBE lote;
 | activo                | tinyint(1)    | NO   |     | 1                   |                |
 | creado_en             | datetime      | NO   |     | current_timestamp() |                |
 +-----------------------+---------------+------+-----+---------------------+----------------+
-15 rows in set (0.005 sec)
+15 rows in set (0.003 sec)
 
 MariaDB [bd_agropecuaria]> DESCRIBE marca;
 +-------------+--------------+------+-----+---------+----------------+
@@ -174,7 +174,7 @@ MariaDB [bd_agropecuaria]> DESCRIBE marca;
 | descripcion | text         | YES  |     | NULL    |                |
 | activo      | tinyint(1)   | NO   |     | 1       |                |
 +-------------+--------------+------+-----+---------+----------------+
-5 rows in set (0.005 sec)
+5 rows in set (0.002 sec)
 
 MariaDB [bd_agropecuaria]> DESCRIBE movimiento_almacen;
 +-------------------+----------------------------------------------+------+-----+---------------------+----------------+
@@ -193,7 +193,7 @@ MariaDB [bd_agropecuaria]> DESCRIBE movimiento_almacen;
 | referencia_tipo   | varchar(30)                                  | YES  |     | NULL                |                |
 | observaciones     | text                                         | YES  |     | NULL                |                |
 +-------------------+----------------------------------------------+------+-----+---------------------+----------------+
-12 rows in set (0.006 sec)
+12 rows in set (0.003 sec)
 
 MariaDB [bd_agropecuaria]> DESCRIBE permiso;
 +--------------+-------------+------+-----+---------+----------------+
@@ -205,7 +205,7 @@ MariaDB [bd_agropecuaria]> DESCRIBE permiso;
 | nombre_clave | varchar(80) | NO   | UNI | NULL    |                |
 | descripcion  | text        | YES  |     | NULL    |                |
 +--------------+-------------+------+-----+---------+----------------+
-5 rows in set (0.005 sec)
+5 rows in set (0.003 sec)
 
 MariaDB [bd_agropecuaria]> DESCRIBE producto;
 +------------------+---------------+------+-----+---------------------+----------------+
@@ -227,7 +227,7 @@ MariaDB [bd_agropecuaria]> DESCRIBE producto;
 | activo           | tinyint(1)    | NO   |     | 1                   |                |
 | creado_en        | datetime      | NO   |     | current_timestamp() |                |
 +------------------+---------------+------+-----+---------------------+----------------+
-15 rows in set (0.004 sec)
+15 rows in set (0.003 sec)
 
 MariaDB [bd_agropecuaria]> DESCRIBE proveedor;
 +--------------+--------------+------+-----+---------+----------------+
@@ -242,7 +242,7 @@ MariaDB [bd_agropecuaria]> DESCRIBE proveedor;
 | direccion    | varchar(200) | YES  |     | NULL    |                |
 | activo       | tinyint(1)   | NO   |     | 1       |                |
 +--------------+--------------+------+-----+---------+----------------+
-8 rows in set (0.005 sec)
+8 rows in set (0.004 sec)
 
 MariaDB [bd_agropecuaria]> DESCRIBE rol;
 +--------+-------------+------+-----+---------+----------------+
@@ -251,7 +251,7 @@ MariaDB [bd_agropecuaria]> DESCRIBE rol;
 | id_rol | int(11)     | NO   | PRI | NULL    | auto_increment |
 | nombre | varchar(50) | NO   |     | NULL    |                |
 +--------+-------------+------+-----+---------+----------------+
-2 rows in set (0.007 sec)
+2 rows in set (0.004 sec)
 
 MariaDB [bd_agropecuaria]> DESCRIBE rol_permiso;
 +------------+---------+------+-----+---------+-------+
@@ -260,7 +260,7 @@ MariaDB [bd_agropecuaria]> DESCRIBE rol_permiso;
 | id_rol     | int(11) | NO   | PRI | NULL    |       |
 | id_permiso | int(11) | NO   | PRI | NULL    |       |
 +------------+---------+------+-----+---------+-------+
-2 rows in set (0.004 sec)
+2 rows in set (0.003 sec)
 
 MariaDB [bd_agropecuaria]> DESCRIBE sucursal;
 +-------------+--------------+------+-----+---------------------+----------------+
@@ -275,7 +275,7 @@ MariaDB [bd_agropecuaria]> DESCRIBE sucursal;
 | activo      | tinyint(1)   | NO   |     | 1                   |                |
 | creado_en   | datetime     | NO   |     | current_timestamp() |                |
 +-------------+--------------+------+-----+---------------------+----------------+
-8 rows in set (0.006 sec)
+8 rows in set (0.003 sec)
 
 MariaDB [bd_agropecuaria]> DESCRIBE traslado;
 +-------------------+--------------------------------------------+------+-----+---------------------+----------------+
@@ -291,7 +291,7 @@ MariaDB [bd_agropecuaria]> DESCRIBE traslado;
 | estado            | enum('PENDIENTE','CONFIRMADO','CANCELADO') | NO   |     | PENDIENTE           |                |
 | observaciones     | text                                       | YES  |     | NULL                |                |
 +-------------------+--------------------------------------------+------+-----+---------------------+----------------+
-9 rows in set (0.004 sec)
+9 rows in set (0.003 sec)
 
 MariaDB [bd_agropecuaria]> DESCRIBE unidad_medida;
 +-------------+-------------+------+-----+---------+----------------+
@@ -301,7 +301,7 @@ MariaDB [bd_agropecuaria]> DESCRIBE unidad_medida;
 | nombre      | varchar(50) | NO   |     | NULL    |                |
 | abreviatura | varchar(10) | NO   |     | NULL    |                |
 +-------------+-------------+------+-----+---------+----------------+
-3 rows in set (0.005 sec)
+3 rows in set (0.004 sec)
 
 MariaDB [bd_agropecuaria]> DESCRIBE usuario;
 +-------------+--------------+------+-----+---------------------+----------------+
@@ -342,7 +342,7 @@ MariaDB [bd_agropecuaria]> DESCRIBE venta;
 | estado          | enum('COMPLETADA','ANULADA','PENDIENTE')               | NO   |     | COMPLETADA          |                |
 | observaciones   | text                                                   | YES  |     | NULL                |                |
 +-----------------+--------------------------------------------------------+------+-----+---------------------+----------------+
-16 rows in set (0.006 sec)
+16 rows in set (0.004 sec)
 
 MariaDB [bd_agropecuaria]> select *from permiso;
 +------------+-----------------+------------------------+---------------------------------+-----------------------------------------------------+
@@ -470,6 +470,6 @@ MariaDB [bd_agropecuaria]> select *from permiso;
 |        120 | configuracion   | ver                    | configuracion.ver               | Ver configuración general del sistema               |
 |        121 | configuracion   | editar                 | configuracion.editar            | Editar configuración general del sistema            |
 +------------+-----------------+------------------------+---------------------------------+-----------------------------------------------------+
-121 rows in set (0.007 sec)
+121 rows in set (0.000 sec)
 
 MariaDB [bd_agropecuaria]>

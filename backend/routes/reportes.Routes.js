@@ -50,10 +50,22 @@ router.get('/inventario/:tipo', requireDynamicPermission({
 }), ctrl.obtenerReporteInventario);
 
 // ==========================================
-// RUTAS DE GANANCIAS / DASHBOARD VIEJO
+// RUTAS DE GANANCIAS / DASHBOARD
 // ==========================================
-router.get('/financiero', checkPermission('ganancias', 'reportes'), ctrl.obtenerResumenFinanciero);
-router.get('/top-productos', checkPermission('top_productos', 'reportes'), ctrl.obtenerTopProductos);
-router.get('/vencimientos', checkPermission('vencimientos', 'reportes'), ctrl.obtenerAlertasVencimiento);
+router.get('/financiero',        checkPermission('ganancias',         'reportes'), ctrl.obtenerResumenFinanciero);
+router.get('/top-productos',     checkPermission('top_productos',     'reportes'), ctrl.obtenerTopProductos);
+router.get('/vencimientos',      checkPermission('vencimientos',      'reportes'), ctrl.obtenerAlertasVencimiento);
+router.get('/ganancias/producto',checkPermission('ganancias_producto','reportes'), ctrl.obtenerReporteGananciasProducto);
+
+// ==========================================
+// RUTAS DE SUCURSALES
+// ==========================================
+router.get('/sucursales/traslados',   checkPermission('traslados',             'reportes'), ctrl.obtenerReporteTraslados);
+router.get('/sucursales/comparativo', checkPermission('comparativo_sucursales','reportes'), ctrl.obtenerReporteComparativoSucursales);
+
+// ==========================================
+// RUTAS DE CAJA
+// ==========================================
+router.get('/caja', checkPermission('caja', 'reportes'), ctrl.obtenerReporteCaja);
 
 module.exports = router;

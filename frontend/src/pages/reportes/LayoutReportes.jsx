@@ -6,6 +6,7 @@ import VistaCompras from './vistas/VistaCompras';
 import VistaInventario from './vistas/VistaInventario';
 import VistaGanancias from './vistas/VistaGanancias';
 import VistaSucursales from './vistas/VistaSucursales';
+import VistaCaja from './vistas/VistaCaja';
 
 export default function LayoutReportes() {
   const { puede } = usePermission();
@@ -46,6 +47,13 @@ export default function LayoutReportes() {
       icono: '🏢',
       component: <VistaSucursales />,
       visible: puede('traslados', 'reportes') || puede('comparativo_sucursales', 'reportes')
+    },
+    {
+      id: 'caja',
+      label: 'Caja',
+      icono: '🏧',
+      component: <VistaCaja />,
+      visible: puede('caja', 'reportes')
     }
   ];
 

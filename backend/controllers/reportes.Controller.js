@@ -341,11 +341,192 @@ const obtenerAlertasVencimiento = async (req, res) => {
   }
 };
 
+// ==========================================
+// GANANCIAS POR PRODUCTO
+// ==========================================
+const obtenerReporteGananciasProducto = async (req, res) => {
+  const { fechaInicio, fechaFin } = req.query;
+  const sucursalId = req.user?.id_sucursal;
+
+  try {
+    let whereClause = `v.estado = 'COMPLETADA' AND v.id_sucursal = ?`;
+    const params = [sucursalId];
+
+    if (fechaInicio && fechaFin) {
+      whereClause += ` AND DATE(v.fecha_venta) BETWEEN ? AND ?`;
+      params.push(fechaInicio, fechaFin);
+    }
+
+    const query = `
+      SELECT p.id_producto, p.nombre, p.codigo_barras,
+        SUM(CASE WHEN dv.tipo_cantidad = 'CAJA' THEN dv.cantidad * l.unidades_por_caja ELSE dv.cantidad END) as unidades_vendidas,
+        SUM(dv.subtotal) as total_ingresos,
+        SUM(CASE WHEN dv.tipo_cantidad = 'CAJA'
+          THEN dv.cantidad * l.precio_por_caja
+          ELSE dv.cantidad * (l.precio_por_caja / l.unidades_por_caja)
+        END) as costo_total,
+        SUM(dv.subtotal) - SUM(CASE WHEN dv.tipo_cantidad = 'CAJA'
+          THEN dv.cantidad * l.precio_por_caja
+          ELSE dv.cantidad * (l.precio_por_caja / l.unidades_por_caja)
+        END) as ganancia_bruta
+      FROM detalle_venta dv
+      JOIN venta v ON dv.id_venta = v.id_venta
+      JOIN producto p ON dv.id_producto = p.id_producto
+      JOIN lote l ON dv.id_lote = l.id_lote
+      WHERE ${whereClause}
+      GROUP BY p.id_producto, p.nombre, p.codigo_barras
+      ORDER BY ganancia_bruta DESC
+    `;
+
+    const [rows] = await db.promise().query(query, params);
+    const resumen = {
+      total_registros: rows.length,
+      total_ingresos: rows.reduce((a, r) => a + parseFloat(r.total_ingresos || 0), 0),
+      costo_total:    rows.reduce((a, r) => a + parseFloat(r.costo_total || 0), 0),
+      ganancia_total: rows.reduce((a, r) => a + parseFloat(r.ganancia_bruta || 0), 0)
+    };
+
+    return res.json({ data: rows, resumen });
+  } catch (err) {
+    console.error('Error en obtenerReporteGananciasProducto:', err);
+    return res.status(500).json({ error: 'Error interno al generar reporte de ganancias por producto.' });
+  }
+};
+
+// ==========================================
+// TRASLADOS ENTRE SUCURSALES
+// ==========================================
+const obtenerReporteTraslados = async (req, res) => {
+  const { fechaInicio, fechaFin } = req.query;
+  const sucursalId = req.user?.id_sucursal;
+
+  try {
+    let whereClause = `(l.id_sucursal = ? OR t.id_sucursal_dest = ?)`;
+    const params = [sucursalId, sucursalId];
+
+    if (fechaInicio && fechaFin) {
+      whereClause += ` AND DATE(t.fecha_traslado) BETWEEN ? AND ?`;
+      params.push(fechaInicio, fechaFin);
+    }
+
+    const query = `
+      SELECT t.id_traslado, t.fecha_traslado, t.estado, t.observaciones,
+        t.cantidad_cajas, t.cantidad_unidades,
+        p.nombre as producto_nombre,
+        l.numero_lote,
+        s_orig.nombre as sucursal_origen,
+        s_dest.nombre as sucursal_destino,
+        u.nombre as usuario_nombre, u.apellido as usuario_apellido
+      FROM traslado t
+      JOIN lote l ON t.id_lote_origen = l.id_lote
+      JOIN producto p ON l.id_producto = p.id_producto
+      JOIN sucursal s_orig ON l.id_sucursal = s_orig.id_sucursal
+      JOIN sucursal s_dest ON t.id_sucursal_dest = s_dest.id_sucursal
+      JOIN usuario u ON t.id_usuario = u.id_usuario
+      WHERE ${whereClause}
+      ORDER BY t.fecha_traslado DESC
+    `;
+
+    const [rows] = await db.promise().query(query, params);
+    return res.json({ data: rows, resumen: { total_registros: rows.length } });
+  } catch (err) {
+    console.error('Error en obtenerReporteTraslados:', err);
+    return res.status(500).json({ error: 'Error interno al generar reporte de traslados.' });
+  }
+};
+
+// ==========================================
+// COMPARATIVO ENTRE SUCURSALES
+// ==========================================
+const obtenerReporteComparativoSucursales = async (req, res) => {
+  const { fechaInicio, fechaFin } = req.query;
+
+  try {
+    const params = [];
+    let ventaJoinWhere = `v.estado = 'COMPLETADA'`;
+
+    if (fechaInicio && fechaFin) {
+      ventaJoinWhere += ` AND DATE(v.fecha_venta) BETWEEN ? AND ?`;
+      params.push(fechaInicio, fechaFin);
+    }
+
+    const query = `
+      SELECT s.id_sucursal, s.nombre as sucursal, s.ciudad,
+        COUNT(DISTINCT v.id_venta) as total_ventas,
+        COALESCE(SUM(v.total), 0) as total_ingresos,
+        COALESCE(SUM(v.descuento_total), 0) as total_descuentos
+      FROM sucursal s
+      LEFT JOIN venta v ON s.id_sucursal = v.id_sucursal AND ${ventaJoinWhere}
+      WHERE s.activo = 1
+      GROUP BY s.id_sucursal, s.nombre, s.ciudad
+      ORDER BY total_ingresos DESC
+    `;
+
+    const [rows] = await db.promise().query(query, params);
+    const resumen = {
+      total_registros: rows.length,
+      total_global: rows.reduce((a, r) => a + parseFloat(r.total_ingresos || 0), 0)
+    };
+
+    return res.json({ data: rows, resumen });
+  } catch (err) {
+    console.error('Error en obtenerReporteComparativoSucursales:', err);
+    return res.status(500).json({ error: 'Error interno al generar comparativo de sucursales.' });
+  }
+};
+
+// ==========================================
+// ARQUEOS DE CAJA
+// ==========================================
+const obtenerReporteCaja = async (req, res) => {
+  const { fechaInicio, fechaFin } = req.query;
+  const sucursalId = req.user?.id_sucursal;
+
+  try {
+    let whereClause = `acc.id_sucursal = ?`;
+    const params = [sucursalId];
+
+    if (fechaInicio && fechaFin) {
+      whereClause += ` AND DATE(acc.fecha_apertura) BETWEEN ? AND ?`;
+      params.push(fechaInicio, fechaFin);
+    }
+
+    const query = `
+      SELECT acc.id_apertura, acc.fecha_apertura, acc.fecha_cierre,
+        acc.monto_inicial, acc.monto_esperado, acc.monto_final, acc.diferencia,
+        acc.estado, acc.observaciones,
+        c.nombre as caja_nombre,
+        u.nombre as cajero_nombre, u.apellido as cajero_apellido
+      FROM apertura_cierre_caja acc
+      JOIN caja c ON acc.id_caja = c.id_caja
+      JOIN usuario u ON acc.id_usuario = u.id_usuario
+      WHERE ${whereClause}
+      ORDER BY acc.fecha_apertura DESC
+    `;
+
+    const [rows] = await db.promise().query(query, params);
+    const resumen = {
+      total_registros: rows.length,
+      total_diferencia: rows.reduce((a, r) => a + parseFloat(r.diferencia || 0), 0),
+      arqueos_con_diferencia: rows.filter(r => parseFloat(r.diferencia || 0) !== 0).length
+    };
+
+    return res.json({ data: rows, resumen });
+  } catch (err) {
+    console.error('Error en obtenerReporteCaja:', err);
+    return res.status(500).json({ error: 'Error interno al generar reporte de caja.' });
+  }
+};
+
 module.exports = {
   obtenerReporteVentas,
   obtenerReporteCompras,
   obtenerReporteInventario,
   obtenerResumenFinanciero,
   obtenerTopProductos,
-  obtenerAlertasVencimiento
+  obtenerAlertasVencimiento,
+  obtenerReporteGananciasProducto,
+  obtenerReporteTraslados,
+  obtenerReporteComparativoSucursales,
+  obtenerReporteCaja
 };
