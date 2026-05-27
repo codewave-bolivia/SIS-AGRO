@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { usePermission } from '../../../hooks/usePermission';
 import reporteService from '../../../services/reporte.service';
 import FiltrosAvanzados from '../components/FiltrosAvanzados';
@@ -24,14 +24,22 @@ export default function VistaVentas() {
   const [cargando, setCargando] = useState(false);
   const [filtros, setFiltros] = useState({});
 
+  // Ref siempre actualizado — permite que buscarDatos use los filtros más recientes
+  // sin depender del orden de actualización de estado de React
+  const filtrosRef = useRef(filtros);
+  filtrosRef.current = filtros;
+
+  const activeTabRef = useRef(activeTab);
+  activeTabRef.current = activeTab;
+
   const [catalogos, setCatalogos] = useState({ clientes: [], productos: [], usuarios: [] });
 
   useEffect(() => {
     // Cargar catálogos solo una vez
     Promise.all([
-      reporteService.catalogos.clientes().catch(() => ({data:[]})),
-      reporteService.catalogos.productos().catch(() => ({data:[]})),
-      reporteService.catalogos.usuarios().catch(() => ({data:[]}))
+      reporteService.catalogos.clientes().catch(() => ({ data: [] })),
+      reporteService.catalogos.productos().catch(() => ({ data: [] })),
+      reporteService.catalogos.usuarios().catch(() => ({ data: [] }))
     ]).then(([resCli, resProd, resUsu]) => {
       setCatalogos({
         clientes: resCli.data,
@@ -41,23 +49,45 @@ export default function VistaVentas() {
     });
   }, []);
 
-  useEffect(() => {
-    if (activeTab) buscarDatos();
-  }, [activeTab]); // Buscar cuando cambia el tab
+  // ── buscarDatos ────────────────────────────────────────────────────────────
+  // Acepta overrideFiltros para poder buscar con filtros distintos al estado
+  // actual (útil al limpiar: setFiltros({}) es asíncrono, pero pasamos {} directo)
+  const buscarDatos = useCallback(async (overrideFiltros) => {
+    const tab      = activeTabRef.current;
+    const filtrosFinal = overrideFiltros !== undefined ? overrideFiltros : filtrosRef.current;
 
-  const buscarDatos = async () => {
+    if (!tab) return;
     setCargando(true);
     try {
-      const res = await reporteService.ventas(activeTab, filtros);
+      const res = await reporteService.ventas(tab, filtrosFinal);
       setDatos(res.data.data || []);
       setResumen(res.data.resumen || {});
     } catch (err) {
       console.error(err);
-      alert('Error cargando reporte de ventas');
     } finally {
       setCargando(false);
     }
-  };
+  }, []); // sin dependencias: usa refs para leer valores frescos
+
+  // ── Limpiar y re-buscar ────────────────────────────────────────────────────
+  const limpiarFiltros = useCallback(() => {
+    setFiltros({});
+    buscarDatos({}); // pasa {} directamente, evita stale-closure
+  }, [buscarDatos]);
+
+  // ── Cambiar de tab: resetear filtros + datos ──────────────────────────────
+  const cambiarTab = useCallback((tabId) => {
+    setActiveTab(tabId);
+    setFiltros({});
+    setDatos([]);
+    setResumen(null);
+  }, []);
+
+  // Cargar datos cuando cambia el tab (ya con filtros limpios)
+  useEffect(() => {
+    if (activeTab) buscarDatos({});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
 
   // Configurar opciones de filtros según el tab activo
   const opcionesFiltros = {
@@ -79,7 +109,7 @@ export default function VistaVentas() {
       case 'rango':
         return [
           { key: 'id_venta', header: 'Nro Venta', render: v => `#${v.toString().padStart(5, '0')}`, excelValue: r => r.id_venta },
-          { key: 'fecha_venta', header: 'Fecha', excelValue: r => new Date(r.fecha_venta).toLocaleString() },
+          { key: 'fecha_venta', header: 'Fecha', render: v => new Date(v).toLocaleString('es-BO'), excelValue: r => new Date(r.fecha_venta).toLocaleString('es-BO') },
           { key: 'nro_factura', header: 'Factura', render: v => v || 'S/N' },
           { key: 'cliente_nombre', header: 'Cliente', render: (_, r) => r.cliente_nombre ? `${r.cliente_nombre} ${r.cliente_apellido || ''}` : 'Casual', excelValue: r => r.cliente_nombre ? `${r.cliente_nombre} ${r.cliente_apellido || ''}` : 'Casual' },
           { key: 'vendedor_nombre', header: 'Vendedor', render: (_, r) => `${r.vendedor_nombre} ${r.vendedor_apellido}`, excelValue: r => `${r.vendedor_nombre} ${r.vendedor_apellido}` },
@@ -122,7 +152,7 @@ export default function VistaVentas() {
         {tabsPermitidos.map(tab => (
           <button
             key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => cambiarTab(tab.id)}
             className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
               activeTab === tab.id
                 ? 'bg-zinc-800 text-white dark:bg-white dark:text-zinc-900 shadow-md'
@@ -134,10 +164,11 @@ export default function VistaVentas() {
         ))}
       </div>
 
-      <FiltrosAvanzados 
-        filtros={filtros} 
-        setFiltros={setFiltros} 
-        onBuscar={buscarDatos} 
+      <FiltrosAvanzados
+        filtros={filtros}
+        setFiltros={setFiltros}
+        onBuscar={buscarDatos}
+        onLimpiar={limpiarFiltros}
         cargando={cargando}
         opciones={opcionesFiltros}
         catalogos={catalogos}

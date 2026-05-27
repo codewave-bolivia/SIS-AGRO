@@ -1,7 +1,8 @@
-export default function FiltrosAvanzados({ 
-  filtros, 
-  setFiltros, 
-  onBuscar, 
+export default function FiltrosAvanzados({
+  filtros,
+  setFiltros,
+  onBuscar,
+  onLimpiar,          // opcional: si se pasa, se llama al limpiar (para re-buscar con filtros vacíos)
   cargando,
   opciones = { fechas: true, clientes: false, productos: false, vendedores: false, proveedores: false, sucursales: false },
   catalogos = { clientes: [], productos: [], usuarios: [], proveedores: [], sucursales: [] }
@@ -11,9 +12,14 @@ export default function FiltrosAvanzados({
     setFiltros(prev => ({ ...prev, [name]: value }));
   };
 
+  // Si el padre provee onLimpiar lo usa (permite re-buscar con filtros vacíos sin stale-closure).
+  // Si no, solo limpia el estado local de filtros.
   const limpiar = () => {
-    setFiltros({});
-    // Dependiendo del padre, puede que necesite un onBuscar automático al limpiar
+    if (onLimpiar) {
+      onLimpiar();
+    } else {
+      setFiltros({});
+    }
   };
 
   return (
