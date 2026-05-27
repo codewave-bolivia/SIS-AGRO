@@ -86,7 +86,7 @@ export default function VentaTicket() {
               src="/logo.png"
               alt="Logo SIS-AGRO"
               style={{
-                maxHeight: '60px',
+                maxHeight: '140px',
                 maxWidth: '100%',
                 margin: '0 auto 4px',
                 display: 'block',
