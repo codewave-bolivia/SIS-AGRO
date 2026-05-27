@@ -150,6 +150,7 @@ export default function App() {
                 <NuevaVenta />
               </PageRoute>
             }/>
+            {/* Sin AppLayout: página full-screen para impresión 80mm */}
             <Route path="/ventas/:id/ticket" element={
               <ProtectedRoute action="ver" subject="ventas">
                 <VentaTicket />
