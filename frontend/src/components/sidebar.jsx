@@ -40,7 +40,6 @@ const MENU_ITEMS = [
   { label: 'Sucursales',        path: '/sucursales',     icono: '🏢', action: 'ver',             subject: 'sucursales' },
   { label: 'Usuarios',          path: '/usuarios',       icono: '👥', action: 'ver',             subject: 'usuarios' },
   { label: 'Roles y Permisos',  path: '/roles',          icono: '🔐', action: 'ver',             subject: 'roles' },
-  { label: 'Backups',           path: '/backups',        icono: '💾', action: 'ver',             subject: 'roles' },
 ];
 
 // ── Toggle tema ───────────────────────────────────────────────────────────

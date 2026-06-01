@@ -25,14 +25,27 @@ export default function VistaSucursales() {
   const tabsPermitidos = SUB_TABS.filter(t => puede(t.permiso, 'reportes'));
   const [activeTab, setActiveTab] = useState(tabsPermitidos.length > 0 ? tabsPermitidos[0].id : null);
 
+  const hoy          = new Date().toISOString().split('T')[0];
+  const primerDiaMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+    .toISOString().split('T')[0];
+
   const [datos, setDatos] = useState([]);
   const [resumen, setResumen] = useState(null);
-  const [filtros, setFiltros] = useState({});
+  const [filtros, setFiltros] = useState({ fechaInicio: primerDiaMes, fechaFin: hoy });
   const [cargando, setCargando] = useState(false);
 
+  // Auto-consulta al cambiar tab o modificar filtros de fechas
   useEffect(() => {
-    if (activeTab) buscarDatos();
-  }, [activeTab]);
+    if (!activeTab) return;
+    setCargando(true);
+    const llamada = activeTab === 'traslados'
+      ? reporteService.traslados(filtros)
+      : reporteService.comparativoSucursales(filtros);
+    llamada
+      .then(res => { setDatos(res.data.data || []); setResumen(res.data.resumen || {}); })
+      .catch(() => {})
+      .finally(() => setCargando(false));
+  }, [activeTab, filtros]);
 
   const buscarDatos = async () => {
     setCargando(true);
@@ -54,7 +67,7 @@ export default function VistaSucursales() {
 
   const columnasTraslados = [
     { key: 'id_traslado', header: 'Nro', render: v => `#${String(v).padStart(4,'0')}`, excelValue: r => r.id_traslado },
-    { key: 'fecha_traslado', header: 'Fecha', excelValue: r => new Date(r.fecha_traslado).toLocaleString() },
+    { key: 'fecha_traslado', header: 'Fecha', render: v => v ? String(v).slice(0, 19) : '—', excelValue: r => new Date(r.fecha_traslado).toLocaleString() },
     { key: 'producto_nombre', header: 'Producto' },
     { key: 'numero_lote', header: 'Lote', render: v => v || 'N/A' },
     { key: 'sucursal_origen', header: 'Origen' },
@@ -156,10 +169,12 @@ export default function VistaSucursales() {
           datos={datos}
           columnas={columnas}
           titulo={`Reporte_${tituloActual.replace(/\s+/g, '_')}`}
+          resumen={resumen}
+          subtitulo={filtros.fechaInicio && filtros.fechaFin ? `Período: ${filtros.fechaInicio} al ${filtros.fechaFin}` : ''}
         />
       </div>
 
-      <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+      <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
         <TablaReporte columnas={columnas} datos={datos} cargando={cargando} />
       </div>
     </div>

@@ -167,10 +167,15 @@ export default function VistaInventario() {
           )}
         </div>
         
-        <BotonesExportar datos={datos} columnas={getColumnas()} titulo={`Reporte_Inventario_${tituloActual.replace(/\s+/g, '_')}`} />
+        <BotonesExportar
+          datos={datos}
+          columnas={getColumnas()}
+          titulo={`Reporte_Inventario_${tituloActual.replace(/\s+/g, '_')}`}
+          resumen={resumen}
+        />
       </div>
 
-      <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+      <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
         <TablaReporte columnas={getColumnas()} datos={datos} cargando={cargando} />
       </div>
     </div>

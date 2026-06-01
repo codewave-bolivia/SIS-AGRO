@@ -125,7 +125,7 @@ export default function DashboardReportes() {
 
         {/* Tarjetas KPI (Financiero) */}
         {financiero && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="bg-white dark:bg-zinc-900 rounded-2xl p-6 border border-zinc-200 dark:border-zinc-800 shadow-sm relative overflow-hidden">
               <div className="absolute top-0 right-0 p-4 opacity-10">
                 <svg className="w-16 h-16 text-emerald-500" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
@@ -144,16 +144,6 @@ export default function DashboardReportes() {
               <p className="text-xs text-zinc-400 mt-2">Gastos en inventario</p>
             </div>
 
-            <div className="bg-white dark:bg-zinc-900 rounded-2xl p-6 border border-zinc-200 dark:border-zinc-800 shadow-sm relative overflow-hidden">
-               <div className="absolute top-0 right-0 p-4 opacity-10">
-                <svg className="w-16 h-16 text-blue-500" fill="currentColor" viewBox="0 0 24 24"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg>
-              </div>
-              <p className="text-sm font-semibold text-zinc-500 uppercase tracking-wider mb-2">Flujo Bruto (Mes)</p>
-              <h3 className={`text-3xl font-black ${financiero.utilidad_bruta_mes >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-orange-600 dark:text-orange-400'}`}>
-                Bs {parseFloat(financiero.utilidad_bruta_mes).toLocaleString()}
-              </h3>
-              <p className="text-xs text-zinc-400 mt-2">Diferencia Ingresos - Egresos</p>
-            </div>
           </div>
         )}
 

@@ -5,6 +5,11 @@ import FiltrosAvanzados from '../components/FiltrosAvanzados';
 import TablaReporte from '../components/TablaReporte';
 import BotonesExportar from '../components/BotonesExportar';
 
+const hoy          = new Date().toISOString().split('T')[0];
+const primerDiaMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+  .toISOString().split('T')[0];
+const FILTROS_DEFECTO = { fechaInicio: primerDiaMes, fechaFin: hoy };
+
 export default function VistaCompras() {
   const { puede } = usePermission();
 
@@ -19,7 +24,7 @@ export default function VistaCompras() {
   const [datos, setDatos] = useState([]);
   const [resumen, setResumen] = useState(null);
   const [cargando, setCargando] = useState(false);
-  const [filtros, setFiltros] = useState({});
+  const [filtros, setFiltros] = useState(FILTROS_DEFECTO);
 
   const [catalogos, setCatalogos] = useState({ proveedores: [] });
 
@@ -29,9 +34,15 @@ export default function VistaCompras() {
     }).catch(() => {});
   }, []);
 
+  // Auto-consulta al cambiar tab o modificar filtros de fechas
   useEffect(() => {
-    if (activeTab) buscarDatos();
-  }, [activeTab]); 
+    if (!activeTab) return;
+    setCargando(true);
+    reporteService.compras(activeTab, filtros)
+      .then(res => { setDatos(res.data.data || []); setResumen(res.data.resumen || {}); })
+      .catch(() => {})
+      .finally(() => setCargando(false));
+  }, [activeTab, filtros]);
 
   const buscarDatos = async () => {
     setCargando(true);
@@ -41,7 +52,6 @@ export default function VistaCompras() {
       setResumen(res.data.resumen || {});
     } catch (err) {
       console.error(err);
-      alert('Error cargando reporte de compras');
     } finally {
       setCargando(false);
     }
@@ -122,10 +132,16 @@ export default function VistaCompras() {
           )}
         </div>
         
-        <BotonesExportar datos={datos} columnas={getColumnas()} titulo={`Reporte_Compras_${tituloActual.replace(/\s+/g, '_')}`} />
+        <BotonesExportar
+          datos={datos}
+          columnas={getColumnas()}
+          titulo={`Reporte_Compras_${tituloActual.replace(/\s+/g, '_')}`}
+          resumen={resumen}
+          subtitulo={filtros.fechaInicio && filtros.fechaFin ? `Período: ${filtros.fechaInicio} al ${filtros.fechaFin}` : ''}
+        />
       </div>
 
-      <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+      <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
         <TablaReporte columnas={getColumnas()} datos={datos} cargando={cargando} />
       </div>
     </div>

@@ -28,6 +28,7 @@ export default function NuevaVenta() {
   const [guardando, setGuardando] = useState(false);
   const [toast, setToast] = useState(null);
   const [ventaCompletadaId, setVentaCompletadaId] = useState(null);
+  const [tabMovil, setTabMovil] = useState('productos'); // 'productos' | 'carrito'
 
   const [busqueda, setBusqueda] = useState('');
   const busquedaRef = useRef(null);
@@ -123,6 +124,7 @@ export default function NuevaVenta() {
         subtotal: precioBase || 0,
       }]);
     }
+    setTabMovil('carrito');
   };
 
   const actualizarItem = (index, campo, valor) => {
@@ -232,234 +234,280 @@ export default function NuevaVenta() {
     </div>
   );
 
-  return (
-    <div className="min-h-screen bg-zinc-100 dark:bg-zinc-950 flex flex-col md:flex-row">
-      <Toast toast={toast} />
-
-      {/* Panel Izquierdo: Catálogo */}
-      <div className="w-full md:w-7/12 lg:w-2/3 flex flex-col h-[50vh] md:h-screen border-r border-zinc-200 dark:border-zinc-800">
-        <div className="p-4 bg-white dark:bg-zinc-900 shadow-sm z-10 flex gap-4 items-center shrink-0">
-          <button onClick={() => navigate('/ventas')} className="p-2 text-zinc-500 hover:text-zinc-800 bg-zinc-100 dark:bg-zinc-800 rounded-lg">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-          </button>
-          <div className="relative flex-1">
-            <input
-              ref={busquedaRef}
-              type="text"
-              placeholder="Buscar por nombre, código o escanear barras (Enter)..."
-              value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
-              onKeyDown={handleBusquedaKeyDown}
-              className="w-full pl-10 pr-4 py-3 bg-zinc-100 dark:bg-zinc-800 border-none rounded-xl text-zinc-900 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none"
-            />
-            <svg className="w-5 h-5 absolute left-3 top-3.5 text-zinc-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-4 bg-zinc-50 dark:bg-zinc-950">
-          <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {productosFiltrados.map(p => (
-              <div
-                key={p.id_producto}
-                onClick={() => agregarAlCarrito(p)}
-                className="bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-sm border border-zinc-200 dark:border-zinc-800 cursor-pointer hover:border-emerald-500 hover:shadow-md transition-all flex flex-col"
-              >
-                <h3 className="font-bold text-zinc-900 dark:text-white leading-tight mb-1 text-sm">{p.nombre}</h3>
-                <p className="text-xs text-zinc-500 font-mono">{p.codigo_barras || 'S/C'}</p>
-                <div className="mt-3 pt-3 border-t border-zinc-100 dark:border-zinc-800 flex justify-between items-end">
-                  <div>
-                    <p className="text-[10px] text-zinc-400 uppercase tracking-wider">
-                      {tipoVenta === 'MAYOR' ? 'Precio Mayor' : 'Precio Menor'}
-                    </p>
-                    <p className="font-bold text-emerald-600 dark:text-emerald-400 text-sm">
-                      Bs {(tipoVenta === 'MAYOR' ? p.precio_mayor : p.precio_menor).toFixed(2)}
-                    </p>
-                    <p className="text-[10px] text-zinc-400">{p.stock_unidades_total} u</p>
-                  </div>
-                  <div className="w-8 h-8 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-400">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4"/></svg>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-          {productosFiltrados.length === 0 && (
-            <div className="text-center mt-12 text-zinc-400">No se encontraron productos con stock.</div>
-          )}
+  const panelCatalogo = (
+    <div className="flex flex-col h-full">
+      {/* Barra superior: volver + búsqueda */}
+      <div className="p-3 md:p-4 bg-white dark:bg-zinc-900 shadow-sm z-10 flex gap-3 items-center shrink-0">
+        <button onClick={() => navigate('/ventas')} className="p-2 text-zinc-500 hover:text-zinc-800 bg-zinc-100 dark:bg-zinc-800 rounded-lg shrink-0">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          </svg>
+        </button>
+        <div className="relative flex-1">
+          <input
+            ref={busquedaRef}
+            type="text"
+            placeholder="Buscar producto o escanear (Enter)..."
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            onKeyDown={handleBusquedaKeyDown}
+            className="w-full pl-10 pr-4 py-2.5 bg-zinc-100 dark:bg-zinc-800 border-none rounded-xl text-zinc-900 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none text-sm"
+          />
+          <svg className="w-4 h-4 absolute left-3 top-3 text-zinc-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
         </div>
       </div>
 
-      {/* Panel Derecho: Carrito y Cobro */}
-      <div className="w-full md:w-5/12 lg:w-1/3 bg-white dark:bg-zinc-900 flex flex-col h-[50vh] md:h-screen shadow-2xl z-20">
-
-        {/* Cabecera */}
-        <div className="p-4 border-b border-zinc-200 dark:border-zinc-800 shrink-0 space-y-3">
-          <div className="flex gap-2">
-            <select
-              value={idCliente}
-              onChange={(e) => setIdCliente(e.target.value)}
-              className="flex-1 px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-500"
+      {/* Grid de productos */}
+      <div className="flex-1 overflow-y-auto p-3 md:p-4 bg-zinc-50 dark:bg-zinc-950">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+          {productosFiltrados.map(p => (
+            <div
+              key={p.id_producto}
+              onClick={() => agregarAlCarrito(p)}
+              className="bg-white dark:bg-zinc-900 rounded-2xl p-3 shadow-sm border border-zinc-200 dark:border-zinc-800 cursor-pointer hover:border-emerald-500 hover:shadow-md active:scale-95 transition-all flex flex-col"
             >
-              <option value="">Cliente Casual</option>
-              {clientes.map(c => (
-                <option key={c.id_cliente} value={c.id_cliente}>{c.nombre} {c.apellido || c.empresa || ''}</option>
-              ))}
-            </select>
-            <select
-              value={tipoVenta}
-              onChange={(e) => setTipoVenta(e.target.value)}
-              className="w-1/3 px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-500"
-            >
-              <option value="MENOR">Menor</option>
-              <option value="MAYOR">Mayor</option>
-            </select>
-          </div>
-          <input
-            type="text"
-            placeholder="N° Factura (opcional)"
-            value={nroFactura}
-            onChange={e => setNroFactura(e.target.value)}
-            className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-500"
-          />
-        </div>
-
-        {/* Items */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-zinc-50/50 dark:bg-zinc-900">
-          {carrito.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-zinc-400 space-y-4">
-              <svg className="w-16 h-16 opacity-20" fill="none" stroke="currentColor" strokeWidth={1} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
-              </svg>
-              <p className="text-sm">El carrito está vacío</p>
-            </div>
-          ) : (
-            carrito.map((item, idx) => (
-              <div key={idx} className="bg-white dark:bg-zinc-800 p-3 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm relative">
-                <button onClick={() => eliminarDelCarrito(idx)} className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 shadow">
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-                </button>
-                <h4 className="font-bold text-sm text-zinc-900 dark:text-white truncate pr-4">{item.nombre}</h4>
-                <div className="flex gap-2 mt-2">
-                  <div className="w-1/4">
-                    <input
-                      type="number" min="1"
-                      className="w-full text-center py-1 border rounded text-sm dark:bg-zinc-900 dark:border-zinc-700"
-                      value={item.cantidad}
-                      onChange={(e) => actualizarItem(idx, 'cantidad', e.target.value)}
-                    />
-                  </div>
-                  <div className="w-1/4">
-                    <select
-                      className="w-full py-1 border rounded text-xs dark:bg-zinc-900 dark:border-zinc-700"
-                      value={item.tipo_cantidad}
-                      onChange={(e) => actualizarItem(idx, 'tipo_cantidad', e.target.value)}
-                    >
-                      <option value="UNIDAD">Un.</option>
-                      <option value="CAJA">Caj.</option>
-                    </select>
-                  </div>
-                  <div className="w-1/4">
-                    <input
-                      type="number" step="0.5" placeholder="Precio"
-                      className={`w-full text-center py-1 border rounded text-sm dark:bg-zinc-900 dark:border-zinc-700 ${!puedeCambiarPrecio ? 'opacity-60 cursor-not-allowed' : ''}`}
-                      value={item.precio_unitario || ''}
-                      readOnly={!puedeCambiarPrecio}
-                      onChange={(e) => puedeCambiarPrecio && actualizarItem(idx, 'precio_unitario', e.target.value)}
-                    />
-                  </div>
-                  <div className="w-1/4 flex items-center justify-end font-bold text-emerald-600 dark:text-emerald-400 text-sm">
-                    {(parseFloat(item.subtotal) || 0).toFixed(2)}
-                  </div>
+              <h3 className="font-bold text-zinc-900 dark:text-white leading-tight mb-1 text-xs sm:text-sm line-clamp-2">{p.nombre}</h3>
+              <p className="text-[10px] text-zinc-500 font-mono">{p.codigo_barras || 'S/C'}</p>
+              <div className="mt-2 pt-2 border-t border-zinc-100 dark:border-zinc-800 flex justify-between items-end">
+                <div>
+                  <p className="text-[9px] text-zinc-400 uppercase tracking-wider">
+                    {tipoVenta === 'MAYOR' ? 'P. Mayor' : 'P. Menor'}
+                  </p>
+                  <p className="font-bold text-emerald-600 dark:text-emerald-400 text-xs sm:text-sm">
+                    Bs {(tipoVenta === 'MAYOR' ? p.precio_mayor : p.precio_menor).toFixed(2)}
+                  </p>
+                  <p className="text-[9px] text-zinc-400">{p.stock_unidades_total} u</p>
+                </div>
+                <div className="w-7 h-7 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-400 shrink-0">
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4"/></svg>
                 </div>
               </div>
-            ))
-          )}
+            </div>
+          ))}
+        </div>
+        {productosFiltrados.length === 0 && (
+          <div className="text-center mt-12 text-zinc-400 text-sm">No se encontraron productos con stock.</div>
+        )}
+      </div>
+    </div>
+  );
+
+  const panelCarrito = (
+    <div className="flex flex-col h-full bg-white dark:bg-zinc-900">
+      {/* Cabecera del carrito */}
+      <div className="p-3 md:p-4 border-b border-zinc-200 dark:border-zinc-800 shrink-0 space-y-2">
+        <div className="flex gap-2">
+          <select
+            value={idCliente}
+            onChange={(e) => setIdCliente(e.target.value)}
+            className="flex-1 px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-500"
+          >
+            <option value="">Cliente Casual</option>
+            {clientes.map(c => (
+              <option key={c.id_cliente} value={c.id_cliente}>{c.nombre} {c.apellido || c.empresa || ''}</option>
+            ))}
+          </select>
+          <select
+            value={tipoVenta}
+            onChange={(e) => setTipoVenta(e.target.value)}
+            className="w-[90px] px-2 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-500"
+          >
+            <option value="MENOR">Menor</option>
+            <option value="MAYOR">Mayor</option>
+          </select>
+        </div>
+        <input
+          type="text"
+          placeholder="N° Factura (opcional)"
+          value={nroFactura}
+          onChange={e => setNroFactura(e.target.value)}
+          className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-500"
+        />
+      </div>
+
+      {/* Items del carrito */}
+      <div className="flex-1 overflow-y-auto p-3 md:p-4 space-y-2 bg-zinc-50/50 dark:bg-zinc-900">
+        {carrito.length === 0 ? (
+          <div className="h-full flex flex-col items-center justify-center text-zinc-400 space-y-4 py-12">
+            <svg className="w-14 h-14 opacity-20" fill="none" stroke="currentColor" strokeWidth={1} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
+            </svg>
+            <p className="text-sm">El carrito está vacío</p>
+          </div>
+        ) : (
+          carrito.map((item, idx) => (
+            <div key={idx} className="bg-white dark:bg-zinc-800 p-3 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm relative">
+              <button onClick={() => eliminarDelCarrito(idx)} className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 shadow z-10">
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+              </button>
+              <h4 className="font-bold text-sm text-zinc-900 dark:text-white truncate pr-5 mb-2">{item.nombre}</h4>
+              <div className="grid grid-cols-4 gap-1.5 items-center">
+                <input
+                  type="number" min="1"
+                  className="col-span-1 w-full text-center py-1.5 border rounded-lg text-sm dark:bg-zinc-900 dark:border-zinc-700 outline-none"
+                  value={item.cantidad}
+                  onChange={(e) => actualizarItem(idx, 'cantidad', e.target.value)}
+                />
+                <select
+                  className="col-span-1 w-full py-1.5 border rounded-lg text-xs dark:bg-zinc-900 dark:border-zinc-700 outline-none"
+                  value={item.tipo_cantidad}
+                  onChange={(e) => actualizarItem(idx, 'tipo_cantidad', e.target.value)}
+                >
+                  <option value="UNIDAD">Un.</option>
+                  <option value="CAJA">Caj.</option>
+                </select>
+                <input
+                  type="number" step="0.5" placeholder="Precio"
+                  className={`col-span-1 w-full text-center py-1.5 border rounded-lg text-sm dark:bg-zinc-900 dark:border-zinc-700 outline-none ${!puedeCambiarPrecio ? 'opacity-60 cursor-not-allowed' : ''}`}
+                  value={item.precio_unitario || ''}
+                  readOnly={!puedeCambiarPrecio}
+                  onChange={(e) => puedeCambiarPrecio && actualizarItem(idx, 'precio_unitario', e.target.value)}
+                />
+                <div className="col-span-1 text-right font-bold text-emerald-600 dark:text-emerald-400 text-sm pr-1">
+                  {(parseFloat(item.subtotal) || 0).toFixed(2)}
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Totales y Cobro */}
+      <div className="p-3 md:p-4 bg-white dark:bg-zinc-900 border-t border-zinc-200 dark:border-zinc-800 shrink-0 space-y-2.5">
+        <div className="flex justify-between text-zinc-500 text-sm">
+          <span>Subtotal</span>
+          <span>Bs {totales.subtotal.toFixed(2)}</span>
         </div>
 
-        {/* Totales y Cobro */}
-        <div className="p-4 bg-white dark:bg-zinc-900 border-t border-zinc-200 dark:border-zinc-800 shrink-0 space-y-3">
-          <div className="flex justify-between text-zinc-500 text-sm">
-            <span>Subtotal</span>
-            <span>Bs {totales.subtotal.toFixed(2)}</span>
-          </div>
-
-          {/* Descuento global — solo con permiso */}
-          {(puedeDescuento || puedeDescuentoLibre) && (
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-zinc-500 shrink-0">Descuento %</span>
-              <input
-                type="number"
-                min="0"
-                max={puedeDescuentoLibre ? 100 : 50}
-                step="0.5"
-                value={descuentoPct}
-                onChange={e => setDescuentoPct(e.target.value)}
-                className="flex-1 px-2 py-1 border border-zinc-200 dark:border-zinc-700 dark:bg-zinc-800 rounded-lg text-sm outline-none text-right"
-                placeholder="0"
-              />
-              {totales.descuento_total > 0 && (
-                <span className="text-sm text-red-500 shrink-0">-Bs {totales.descuento_total.toFixed(2)}</span>
-              )}
-            </div>
-          )}
-
-          <div className="flex justify-between text-3xl font-black text-zinc-900 dark:text-white py-1">
-            <span className="text-lg self-end font-bold">Total</span>
-            <span>Bs {totales.total.toFixed(2)}</span>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="text-xs text-zinc-500 mb-1 block">Método</label>
-              <select
-                value={metodoPago}
-                onChange={(e) => setMetodoPago(e.target.value)}
-                className="w-full p-2.5 bg-zinc-100 dark:bg-zinc-800 rounded-xl outline-none text-sm font-medium"
-              >
-                <option value="EFECTIVO">Efectivo</option>
-                <option value="QR">QR</option>
-                <option value="TRANSFERENCIA">Transf.</option>
-                <option value="CREDITO">Crédito</option>
-                <option value="OTRO">Otro</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-xs text-zinc-500 mb-1 block">Recibí (Bs)</label>
-              <input
-                type="number"
-                placeholder="Ej. 100"
-                value={montoPagado}
-                onChange={(e) => setMontoPagado(e.target.value)}
-                className="w-full p-2.5 bg-zinc-100 dark:bg-zinc-800 rounded-xl outline-none text-sm font-medium text-right text-emerald-600 focus:ring-2 focus:ring-emerald-500"
-              />
-            </div>
-          </div>
-
-          {totales.cambio > 0 && (
-            <div className="p-3 bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-xl flex justify-between font-bold text-sm">
-              <span>Cambio:</span>
-              <span>Bs {totales.cambio.toFixed(2)}</span>
-            </div>
-          )}
-
-          <button
-            onClick={finalizarVenta}
-            disabled={guardando || carrito.length === 0}
-            className="w-full py-4 rounded-xl text-white font-black text-lg bg-emerald-600 hover:bg-emerald-500 shadow-xl shadow-emerald-500/20 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
-          >
-            {guardando ? 'Procesando...' : (
-              <>
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>
-                </svg>
-                COBRAR Bs {totales.total.toFixed(2)}
-              </>
+        {(puedeDescuento || puedeDescuentoLibre) && (
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-zinc-500 shrink-0">Descuento %</span>
+            <input
+              type="number"
+              min="0"
+              max={puedeDescuentoLibre ? 100 : 50}
+              step="0.5"
+              value={descuentoPct}
+              onChange={e => setDescuentoPct(e.target.value)}
+              className="flex-1 px-2 py-1 border border-zinc-200 dark:border-zinc-700 dark:bg-zinc-800 rounded-lg text-sm outline-none text-right"
+              placeholder="0"
+            />
+            {totales.descuento_total > 0 && (
+              <span className="text-sm text-red-500 shrink-0">-Bs {totales.descuento_total.toFixed(2)}</span>
             )}
-          </button>
+          </div>
+        )}
+
+        <div className="flex justify-between font-black text-zinc-900 dark:text-white py-0.5">
+          <span className="text-base self-end font-bold">Total</span>
+          <span className="text-2xl">Bs {totales.total.toFixed(2)}</span>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="text-xs text-zinc-500 mb-1 block">Método</label>
+            <select
+              value={metodoPago}
+              onChange={(e) => setMetodoPago(e.target.value)}
+              className="w-full p-2 bg-zinc-100 dark:bg-zinc-800 rounded-xl outline-none text-sm font-medium"
+            >
+              <option value="EFECTIVO">Efectivo</option>
+              <option value="QR">QR</option>
+              <option value="TRANSFERENCIA">Transf.</option>
+              <option value="CREDITO">Crédito</option>
+              <option value="OTRO">Otro</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-zinc-500 mb-1 block">Recibí (Bs)</label>
+            <input
+              type="number"
+              placeholder="Ej. 100"
+              value={montoPagado}
+              onChange={(e) => setMontoPagado(e.target.value)}
+              className="w-full p-2 bg-zinc-100 dark:bg-zinc-800 rounded-xl outline-none text-sm font-medium text-right text-emerald-600 focus:ring-2 focus:ring-emerald-500"
+            />
+          </div>
+        </div>
+
+        {totales.cambio > 0 && (
+          <div className="p-2.5 bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-xl flex justify-between font-bold text-sm">
+            <span>Cambio:</span>
+            <span>Bs {totales.cambio.toFixed(2)}</span>
+          </div>
+        )}
+
+        <button
+          onClick={finalizarVenta}
+          disabled={guardando || carrito.length === 0}
+          className="w-full py-3.5 rounded-xl text-white font-black text-base bg-emerald-600 hover:bg-emerald-500 shadow-xl shadow-emerald-500/20 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+        >
+          {guardando ? 'Procesando...' : (
+            <>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>
+              </svg>
+              COBRAR Bs {totales.total.toFixed(2)}
+            </>
+          )}
+        </button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="h-screen bg-zinc-100 dark:bg-zinc-950 flex flex-col overflow-hidden">
+      <Toast toast={toast} />
+
+      {/* Tabs de navegación — solo móvil */}
+      <div className="md:hidden flex border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shrink-0">
+        <button
+          onClick={() => setTabMovil('productos')}
+          className={`flex-1 py-3 text-sm font-semibold transition-colors ${
+            tabMovil === 'productos'
+              ? 'text-emerald-600 border-b-2 border-emerald-500'
+              : 'text-zinc-500 hover:text-zinc-800'
+          }`}
+        >
+          Productos
+        </button>
+        <button
+          onClick={() => setTabMovil('carrito')}
+          className={`flex-1 py-3 text-sm font-semibold transition-colors relative ${
+            tabMovil === 'carrito'
+              ? 'text-emerald-600 border-b-2 border-emerald-500'
+              : 'text-zinc-500 hover:text-zinc-800'
+          }`}
+        >
+          Carrito
+          {carrito.length > 0 && (
+            <span className="ml-1.5 inline-flex items-center justify-center w-5 h-5 text-[10px] font-black bg-emerald-500 text-white rounded-full">
+              {carrito.length}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* Contenido principal */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Móvil: mostrar solo el tab activo */}
+        <div className={`md:hidden flex-1 overflow-hidden ${tabMovil === 'productos' ? 'block' : 'hidden'}`}>
+          {panelCatalogo}
+        </div>
+        <div className={`md:hidden flex-1 overflow-hidden ${tabMovil === 'carrito' ? 'block' : 'hidden'}`}>
+          {panelCarrito}
+        </div>
+
+        {/* Desktop: ambos paneles side by side */}
+        <div className="hidden md:flex flex-1 overflow-hidden">
+          <div className="w-7/12 lg:w-2/3 flex flex-col overflow-hidden border-r border-zinc-200 dark:border-zinc-800">
+            {panelCatalogo}
+          </div>
+          <div className="w-5/12 lg:w-1/3 flex flex-col overflow-hidden shadow-2xl z-20">
+            {panelCarrito}
+          </div>
         </div>
       </div>
     </div>

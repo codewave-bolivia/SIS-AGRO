@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import reporteService from '../../../services/reporte.service';
 import FiltrosAvanzados from '../components/FiltrosAvanzados';
 import TablaReporte from '../components/TablaReporte';
@@ -14,8 +14,8 @@ function DiferenciaBadge({ valor }) {
 const COLUMNAS = [
   { key: 'caja_nombre', header: 'Caja' },
   { key: 'cajero_nombre', header: 'Cajero', render: (_, r) => `${r.cajero_nombre} ${r.cajero_apellido}`, excelValue: r => `${r.cajero_nombre} ${r.cajero_apellido}` },
-  { key: 'fecha_apertura', header: 'Apertura', excelValue: r => new Date(r.fecha_apertura).toLocaleString() },
-  { key: 'fecha_cierre', header: 'Cierre', render: v => v ? new Date(v).toLocaleString() : '—', excelValue: r => r.fecha_cierre ? new Date(r.fecha_cierre).toLocaleString() : 'Abierto' },
+  { key: 'fecha_apertura', header: 'Apertura', render: v => v ? String(v).slice(0, 19) : '—', excelValue: r => new Date(r.fecha_apertura).toLocaleString() },
+  { key: 'fecha_cierre', header: 'Cierre', render: v => v ? String(v).slice(0, 19) : '—', excelValue: r => r.fecha_cierre ? new Date(r.fecha_cierre).toLocaleString() : 'Abierto' },
   { key: 'monto_inicial', header: 'Inicial (Bs)', align: 'right', render: v => parseFloat(v).toFixed(2), excelValue: r => parseFloat(r.monto_inicial) },
   { key: 'monto_esperado', header: 'Esperado (Bs)', align: 'right', render: v => v != null ? parseFloat(v).toFixed(2) : '—', excelValue: r => r.monto_esperado != null ? parseFloat(r.monto_esperado) : '' },
   { key: 'monto_final', header: 'Contado (Bs)', align: 'right', render: v => v != null ? parseFloat(v).toFixed(2) : '—', excelValue: r => r.monto_final != null ? parseFloat(r.monto_final) : '' },
@@ -25,11 +25,24 @@ const COLUMNAS = [
   ), excelValue: r => r.estado }
 ];
 
+const hoy          = new Date().toISOString().split('T')[0];
+const primerDiaMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+  .toISOString().split('T')[0];
+
 export default function VistaCaja() {
   const [datos, setDatos] = useState([]);
   const [resumen, setResumen] = useState(null);
-  const [filtros, setFiltros] = useState({});
+  const [filtros, setFiltros] = useState({ fechaInicio: primerDiaMes, fechaFin: hoy });
   const [cargando, setCargando] = useState(false);
+
+  // Auto-consulta al cambiar filtros de fechas
+  useEffect(() => {
+    setCargando(true);
+    reporteService.caja(filtros)
+      .then(res => { setDatos(res.data.data || []); setResumen(res.data.resumen || {}); })
+      .catch(() => {})
+      .finally(() => setCargando(false));
+  }, [filtros]);
 
   const buscarDatos = async () => {
     setCargando(true);
@@ -78,10 +91,16 @@ export default function VistaCaja() {
             </div>
           )}
         </div>
-        <BotonesExportar datos={datos} columnas={COLUMNAS} titulo="Reporte_Arqueos_Caja" />
+        <BotonesExportar
+          datos={datos}
+          columnas={COLUMNAS}
+          titulo="Reporte_Arqueos_Caja"
+          resumen={resumen}
+          subtitulo={filtros.fechaInicio && filtros.fechaFin ? `Período: ${filtros.fechaInicio} al ${filtros.fechaFin}` : ''}
+        />
       </div>
 
-      <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+      <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
         <TablaReporte columnas={COLUMNAS} datos={datos} cargando={cargando} />
       </div>
     </div>

@@ -19,6 +19,10 @@ function Toast({ toast }) {
   );
 }
 
+const hoy          = new Date().toISOString().split('T')[0];
+const primerDiaMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+  .toISOString().split('T')[0];
+
 export default function HistorialVentas() {
   const { puede } = usePermission();
   const navigate = useNavigate();
@@ -27,11 +31,11 @@ export default function HistorialVentas() {
   const [cargando, setCargando] = useState(true);
   const [toast, setToast] = useState(null);
 
-  // Filtros
+  // Filtros — fechas pre-cargadas con el mes actual
   const [busqueda, setBusqueda] = useState('');
   const [filtroEstado, setFiltroEstado] = useState('');
-  const [fechaDesde, setFechaDesde] = useState('');
-  const [fechaHasta, setFechaHasta] = useState('');
+  const [fechaDesde, setFechaDesde] = useState(primerDiaMes);
+  const [fechaHasta, setFechaHasta] = useState(hoy);
 
   const mostrarToast = (tipo, msg) => {
     setToast({ tipo, msg });
@@ -93,11 +97,11 @@ export default function HistorialVentas() {
   const limpiarFiltros = () => {
     setBusqueda('');
     setFiltroEstado('');
-    setFechaDesde('');
-    setFechaHasta('');
+    setFechaDesde(primerDiaMes);
+    setFechaHasta(hoy);
   };
 
-  const hayFiltros = busqueda || filtroEstado || fechaDesde || fechaHasta;
+  const hayFiltros = busqueda || filtroEstado || fechaDesde !== primerDiaMes || fechaHasta !== hoy;
 
   return (
     <PageWrapper>
@@ -126,52 +130,65 @@ export default function HistorialVentas() {
       </div>
 
       {/* Filtros */}
-      <div className="mb-4 flex flex-wrap gap-3">
-        <div className="relative flex-1 min-w-[180px]">
-          <input
-            type="text"
-            placeholder="Buscar cliente, vendedor, factura..."
-            value={busqueda}
-            onChange={e => setBusqueda(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500"
-          />
-          <svg className="w-4 h-4 absolute left-3 top-2.5 text-zinc-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-          </svg>
-        </div>
-        <select
-          value={filtroEstado}
-          onChange={e => setFiltroEstado(e.target.value)}
-          className="px-3 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500"
-        >
-          <option value="">Todos los estados</option>
-          <option value="COMPLETADA">Completada</option>
-          <option value="ANULADA">Anulada</option>
-          <option value="PENDIENTE">Pendiente</option>
-        </select>
-        <input
-          type="date"
-          value={fechaDesde}
-          onChange={e => setFechaDesde(e.target.value)}
-          className="px-3 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500"
-        />
-        <input
-          type="date"
-          value={fechaHasta}
-          onChange={e => setFechaHasta(e.target.value)}
-          className="px-3 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500"
-        />
-        {hayFiltros && (
-          <button
-            onClick={limpiarFiltros}
-            className="px-3 py-2 text-sm text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 border border-zinc-200 dark:border-zinc-700 rounded-xl"
+      <div className="mb-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3 space-y-2">
+        {/* Fila 1: búsqueda + estado */}
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <input
+              type="text"
+              placeholder="Buscar cliente, vendedor, factura..."
+              value={busqueda}
+              onChange={e => setBusqueda(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+            <svg className="w-4 h-4 absolute left-3 top-2.5 text-zinc-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            </svg>
+          </div>
+          <select
+            value={filtroEstado}
+            onChange={e => setFiltroEstado(e.target.value)}
+            className="px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-500 shrink-0"
           >
-            Limpiar
-          </button>
-        )}
+            <option value="">Todos</option>
+            <option value="COMPLETADA">Completada</option>
+            <option value="ANULADA">Anulada</option>
+            <option value="PENDIENTE">Pendiente</option>
+          </select>
+        </div>
+
+        {/* Fila 2: fechas + limpiar */}
+        <div className="flex gap-2 items-center">
+          <div className="flex items-center gap-1.5 flex-1">
+            <label className="text-xs text-zinc-500 shrink-0">Desde</label>
+            <input
+              type="date"
+              value={fechaDesde}
+              onChange={e => setFechaDesde(e.target.value)}
+              className="flex-1 min-w-0 px-2 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+          </div>
+          <div className="flex items-center gap-1.5 flex-1">
+            <label className="text-xs text-zinc-500 shrink-0">Hasta</label>
+            <input
+              type="date"
+              value={fechaHasta}
+              onChange={e => setFechaHasta(e.target.value)}
+              className="flex-1 min-w-0 px-2 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+          </div>
+          {hayFiltros && (
+            <button
+              onClick={limpiarFiltros}
+              className="px-3 py-2 text-xs text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 border border-zinc-200 dark:border-zinc-700 rounded-lg shrink-0 whitespace-nowrap"
+            >
+              Limpiar
+            </button>
+          )}
+        </div>
       </div>
 
-      {hayFiltros && !cargando && (
+      {!cargando && (
         <p className="text-xs text-zinc-400 mb-3">
           Mostrando {ventasFiltradas.length} de {ventas.length} ventas
         </p>

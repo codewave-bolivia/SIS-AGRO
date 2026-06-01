@@ -6,6 +6,12 @@ import BotonesExportar from '../components/BotonesExportar';
 import TablaReporte from '../components/TablaReporte';
 import FiltrosAvanzados from '../components/FiltrosAvanzados';
 
+// Rango del mes en curso como filtro por defecto
+const hoy         = new Date().toISOString().split('T')[0];
+const primerDiaMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+  .toISOString().split('T')[0];
+const FILTROS_DEFECTO = { fechaInicio: primerDiaMes, fechaFin: hoy };
+
 export default function VistaGanancias() {
   const { puede } = usePermission();
   const puedeVerTodasSucursales = puede('ver_todas_sucursales', 'ventas');
@@ -21,17 +27,17 @@ export default function VistaGanancias() {
 
   // Resumen financiero
   const [financiero, setFinanciero]     = useState(null);
-  const [filtrosFinanciero, setFiltrosFinanciero] = useState({});
+  const [filtrosFinanciero, setFiltrosFinanciero] = useState(FILTROS_DEFECTO);
 
   // Top productos
   const [topProductos, setTopProductos] = useState([]);
-  const [filtrosTop, setFiltrosTop]     = useState({});
+  const [filtrosTop, setFiltrosTop]     = useState(FILTROS_DEFECTO);
   const [ordenarPor, setOrdenarPor]     = useState('unidades'); // 'unidades' | 'ingresos'
 
   // Ganancias por producto
   const [datosGanancia, setDatosGanancia]   = useState([]);
   const [resumenGanancia, setResumenGanancia] = useState(null);
-  const [filtros, setFiltros]               = useState({});
+  const [filtros, setFiltros]               = useState(FILTROS_DEFECTO);
 
   // Estado general
   const [cargando, setCargando]             = useState(false);
@@ -46,22 +52,35 @@ export default function VistaGanancias() {
     }
   }, [puedeVerTodasSucursales]);
 
-  // Cargar datos al cambiar de tab
+  // Auto-consulta: se dispara al cambiar de tab O al cambiar cualquier filtro de fechas
   useEffect(() => {
-    if (!activeTab) return;
+    if (activeTab !== 'generales') return;
     setCargando(true);
-    if (activeTab === 'generales') {
-      reporteService.financiero(filtrosFinanciero)
-        .then(res => setFinanciero(res.data))
-        .finally(() => setCargando(false));
-    } else if (activeTab === 'top_productos') {
-      reporteService.topProductos({ ...filtrosTop, ordenar_por: ordenarPor === 'ingresos' ? 'ingresos' : undefined })
-        .then(res => setTopProductos(res.data))
-        .finally(() => setCargando(false));
-    } else {
-      setCargando(false);
-    }
-  }, [activeTab]);
+    reporteService.financiero(filtrosFinanciero)
+      .then(res => setFinanciero(res.data))
+      .catch(() => {})
+      .finally(() => setCargando(false));
+  }, [activeTab, filtrosFinanciero]);
+
+  useEffect(() => {
+    if (activeTab !== 'top_productos') return;
+    setCargando(true);
+    const params = { ...filtrosTop };
+    if (ordenarPor === 'ingresos') params.ordenar_por = 'ingresos';
+    reporteService.topProductos(params)
+      .then(res => setTopProductos(res.data))
+      .catch(() => {})
+      .finally(() => setCargando(false));
+  }, [activeTab, filtrosTop, ordenarPor]);
+
+  useEffect(() => {
+    if (activeTab !== 'ganancias_producto') return;
+    setCargando(true);
+    reporteService.gananciasProducto(filtros)
+      .then(res => { setDatosGanancia(res.data.data || []); setResumenGanancia(res.data.resumen || {}); })
+      .catch(() => {})
+      .finally(() => setCargando(false));
+  }, [activeTab, filtros]);
 
   // Buscar resumen financiero con filtros
   const buscarFinanciero = async () => {
@@ -152,7 +171,7 @@ export default function VistaGanancias() {
                 catalogos={{ sucursales }}
               />
               {financiero && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="bg-white dark:bg-zinc-900 rounded-2xl p-6 border border-zinc-200 dark:border-zinc-800 shadow-sm relative overflow-hidden">
                     <div className="absolute top-0 right-0 p-4 opacity-10">
                       <svg className="w-16 h-16 text-emerald-500" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
@@ -169,17 +188,6 @@ export default function VistaGanancias() {
                     <p className="text-sm font-semibold text-zinc-500 uppercase tracking-wider mb-2">Compras (Egresos)</p>
                     <h3 className="text-3xl font-black text-red-600 dark:text-red-400">Bs {parseFloat(financiero.egresos_mes).toLocaleString('en-US', {minimumFractionDigits: 2})}</h3>
                     <p className="text-xs text-zinc-400 mt-2">Pagos a proveedores</p>
-                  </div>
-
-                  <div className="bg-white dark:bg-zinc-900 rounded-2xl p-6 border border-zinc-200 dark:border-zinc-800 shadow-sm relative overflow-hidden">
-                    <div className="absolute top-0 right-0 p-4 opacity-10">
-                      <svg className="w-16 h-16 text-blue-500" fill="currentColor" viewBox="0 0 24 24"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg>
-                    </div>
-                    <p className="text-sm font-semibold text-zinc-500 uppercase tracking-wider mb-2">Utilidad Bruta</p>
-                    <h3 className={`text-3xl font-black ${financiero.utilidad_bruta_mes >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-orange-600 dark:text-orange-400'}`}>
-                      Bs {parseFloat(financiero.utilidad_bruta_mes).toLocaleString('en-US', {minimumFractionDigits: 2})}
-                    </h3>
-                    <p className="text-xs text-zinc-400 mt-2">Diferencia neta del período</p>
                   </div>
 
                   {/* KPIs de hoy */}
@@ -256,6 +264,7 @@ export default function VistaGanancias() {
                       { key: 'ingresos_generados',header: 'Ingresos (Bs)', excelValue: r => parseFloat(r.ingresos_generados) }
                     ]}
                     titulo="Ranking_Top_Productos"
+                    subtitulo={filtrosTop.fechaInicio && filtrosTop.fechaFin ? `Período: ${filtrosTop.fechaInicio} al ${filtrosTop.fechaFin}` : ''}
                   />
                 </div>
 
@@ -332,9 +341,11 @@ export default function VistaGanancias() {
                     { key: 'ganancia_bruta', header: 'Ganancia (Bs)', excelValue: r => parseFloat(r.ganancia_bruta) }
                   ]}
                   titulo="Reporte_Ganancias_Por_Producto"
+                  resumen={resumenGanancia}
+                  subtitulo={filtros.fechaInicio && filtros.fechaFin ? `Período: ${filtros.fechaInicio} al ${filtros.fechaFin}` : ''}
                 />
               </div>
-              <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+              <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
                 <TablaReporte
                   cargando={cargando}
                   datos={datosGanancia}

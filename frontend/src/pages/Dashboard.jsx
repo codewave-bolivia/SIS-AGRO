@@ -243,7 +243,7 @@ export default function Dashboard() {
     }
     if (pStockBajo) {
       setLdStock(true);
-      try   { const r = await reporteService.inventario('stock_bajo'); setStock(r.data.slice(0, 6)); }
+      try   { const r = await reporteService.inventario('stock_bajo'); setStock(r.data.data ?? []); }
       catch { /* silencioso */ }
       finally { setLdStock(false); }
     }
@@ -274,8 +274,6 @@ export default function Dashboard() {
 
   const iniciales = [usuario?.nombre?.[0], usuario?.apellido?.[0]]
     .filter(Boolean).join('').toUpperCase() || '?';
-
-  const utilidadPositiva = parseFloat(fin?.utilidad_bruta_mes || 0) >= 0;
 
   // ── No hay ningún widget con datos → mostrar bienvenida simple ──────────
   const tieneAlgunWidget = pFinanciero || pTop || pVenc || pStockBajo;
@@ -335,15 +333,6 @@ export default function Dashboard() {
               icon="💵"
               colorKey="yellow"
               cargando={ldFin}
-            />
-            <KpiCard
-              label="Utilidad bruta"
-              value={fmtBs(fin?.utilidad_bruta_mes)}
-              prefix="Bs"
-              icon={utilidadPositiva ? '📈' : '📉'}
-              colorKey={utilidadPositiva ? 'sky' : 'red'}
-              cargando={ldFin}
-              sub="mes actual"
             />
             <KpiCard
               label="Compras del mes"
