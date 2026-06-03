@@ -4,6 +4,7 @@ import { useAuth }           from '../contexts/AuthContext';
 import { useAbilityUpdater } from '../contexts/AbilityContext';
 import { usePermission }     from '../hooks/usePermission';
 import { useTheme }          from '../contexts/ThemeContext';
+import { useConfig }         from '../contexts/ConfigContext';
 
 const MENU_ITEMS = [
   { label: 'Dashboard',         path: '/dashboard',      icono: '📊', action: null,              subject: null },
@@ -15,6 +16,7 @@ const MENU_ITEMS = [
   { label: 'Caja',              path: '/caja',           icono: '🏧', action: 'ver',             subject: 'caja' },
   { label: 'Compras / Ingresos',path: '/compras',        icono: '🛒', action: 'ver',             subject: 'compras' },
   { label: 'Almacén (Stock)',   path: '/almacen',        icono: '📦', action: 'ver',             subject: 'almacen' },
+  { label: 'Libro de Caja',     path: '/libro-caja',     icono: '📒', action: 'ver',             subject: 'movimientos' },
   { label: 'Reportes',          path: '/reportes',       icono: '📈', action: null, subject: null,
     anyPermission: [
       { action: 'ventas_diarias',        subject: 'reportes' },
@@ -37,6 +39,7 @@ const MENU_ITEMS = [
       { action: 'caja',                  subject: 'reportes' },
     ]
   },
+  { label: 'Configuración',     path: '/configuracion',  icono: '⚙️', action: 'ver',             subject: 'configuracion' },
   { label: 'Sucursales',        path: '/sucursales',     icono: '🏢', action: 'ver',             subject: 'sucursales' },
   { label: 'Usuarios',          path: '/usuarios',       icono: '👥', action: 'ver',             subject: 'usuarios' },
   { label: 'Roles y Permisos',  path: '/roles',          icono: '🔐', action: 'ver',             subject: 'roles' },
@@ -97,6 +100,7 @@ function SidebarContent({ onClose }) {
   const { usuario, logout } = useAuth();
   const { limpiar }         = useAbilityUpdater();
   const { puede }           = usePermission();
+  const { configuracion }   = useConfig();
   const navigate            = useNavigate();
 
   const handleLogout = () => {
@@ -121,23 +125,26 @@ function SidebarContent({ onClose }) {
                     border-r border-zinc-200 dark:border-zinc-800
                     transition-colors duration-300">
 
-      {/* ── LOGO — sin fondo, imagen directa ─────────────────────────── */}
+      {/* ── LOGO ─────────────────────────────────────────────────────── */}
       <div className="flex flex-col items-center pt-6 pb-5
                       border-b border-zinc-200 dark:border-zinc-800 px-4">
 
-        {/* ✅ Solo imagen, sin div contenedor */}
-        <img
-          src="/logo.png"
-          alt="Logo Cooperativa"
-          className="w-50 h-20 object-contain mb-3
-                     drop-shadow-md hover:scale-105
-                     transition-transform duration-300"
-          onError={(e) => {
-            e.target.style.display = 'none';
-            e.target.parentElement.innerHTML +=
-              '<span style="font-size:2.5rem;margin-bottom:0.75rem">📦</span>';
-          }}
-        />
+        {configuracion.logo ? (
+          <img
+            src={configuracion.logo}
+            alt={configuracion.nombre_empresa}
+            className="w-50 h-20 object-contain mb-3
+                       drop-shadow-md hover:scale-105
+                       transition-transform duration-300"
+          />
+        ) : (
+          <div className="flex flex-col items-center mb-3 gap-1">
+            <span style={{ fontSize: '2.5rem' }}>📦</span>
+            <span className="text-sm font-bold text-zinc-700 dark:text-zinc-300 text-center leading-tight">
+              {configuracion.nombre_empresa}
+            </span>
+          </div>
+        )}
 
         {/* Toggle tema */}
         <div className="flex items-center gap-2 mt-4">

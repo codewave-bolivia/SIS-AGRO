@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import configuracionService from '../../../services/configuracion.service';
 
 const BRAND_COLOR  = [22, 163, 74];   // emerald-600
 const DARK_COLOR   = [24, 24, 27];    // zinc-900
@@ -8,7 +9,7 @@ const LIGHT_GRAY   = [244, 244, 245]; // zinc-100
 const MID_GRAY     = [161, 161, 170]; // zinc-400
 const WHITE        = [255, 255, 255];
 
-function dibujarHeader(doc, titulo, subtitulo, logoDataUrl) {
+function dibujarHeader(doc, titulo, subtitulo, logoDataUrl, nombreEmpresa = 'SIS-AGRO') {
   const pw      = doc.internal.pageSize.getWidth();
   const headerH = 32;
 
@@ -35,7 +36,7 @@ function dibujarHeader(doc, titulo, subtitulo, logoDataUrl) {
   doc.setTextColor(...BRAND_COLOR);
   doc.setFontSize(9);
   doc.setFont('helvetica', 'bold');
-  doc.text('SIS-AGRO', textX, 11);
+  doc.text(nombreEmpresa, textX, 11);
 
   // Subtítulo sistema
   doc.setTextColor(...MID_GRAY);
@@ -112,7 +113,7 @@ function dibujarResumen(doc, resumen, startY) {
   return startY + cardH + 5;
 }
 
-function dibujarFooter(doc) {
+function dibujarFooter(doc, nombreEmpresa = 'SIS-AGRO') {
   const pw = doc.internal.pageSize.getWidth();
   const ph = doc.internal.pageSize.getHeight();
   const total = doc.internal.getNumberOfPages();
@@ -129,7 +130,7 @@ function dibujarFooter(doc) {
     doc.setTextColor(...MID_GRAY);
     doc.setFontSize(7);
     doc.setFont('helvetica', 'normal');
-    doc.text('SIS-AGRO — Sistema de Gestión Agropecuaria', 10, ph - 7);
+    doc.text(`${nombreEmpresa} — Sistema de Gestión Agropecuaria`, 10, ph - 7);
 
     // Página
     doc.text(`Página ${i} de ${total}`, pw - 10, ph - 7, { align: 'right' });
@@ -151,22 +152,18 @@ export default function BotonesExportar({
     setExportando(true);
 
     try {
-      // Cargar logo como data URL
-      let logoDataUrl = null;
+      // Cargar config de empresa (nombre + logo)
+      let config = { nombre_empresa: 'SIS-AGRO', logo: null };
       try {
-        const res  = await fetch('/logo.png');
-        const blob = await res.blob();
-        logoDataUrl = await new Promise(resolve => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result);
-          reader.readAsDataURL(blob);
-        });
-      } catch { /* si falla, se omite el logo */ }
+        const res = await configuracionService.obtener();
+        config = res.data;
+      } catch { /* usa valores por defecto */ }
+      const logoDataUrl = config.logo || null;
 
       const doc = new jsPDF({ orientation: orientacion, unit: 'mm', format: 'a4' });
       const tituloLimpio = titulo.replace(/_/g, ' ').replace(/Reporte /i, '').trim();
 
-      const headerH  = dibujarHeader(doc, tituloLimpio, subtitulo, logoDataUrl);
+      const headerH  = dibujarHeader(doc, tituloLimpio, subtitulo, logoDataUrl, config.nombre_empresa);
       let   bodyStart = headerH + 5;
 
       bodyStart = dibujarResumen(doc, resumen, bodyStart);
@@ -213,7 +210,7 @@ export default function BotonesExportar({
         })(),
         didDrawPage: (data) => {
           if (data.pageNumber > 1) {
-            dibujarHeader(doc, tituloLimpio, subtitulo, logoDataUrl);
+            dibujarHeader(doc, tituloLimpio, subtitulo, logoDataUrl, config.nombre_empresa);
           }
         },
         willDrawCell: (data) => {
@@ -224,7 +221,7 @@ export default function BotonesExportar({
         },
       });
 
-      dibujarFooter(doc);
+      dibujarFooter(doc, config.nombre_empresa);
 
       const fecha = new Date().toISOString().split('T')[0];
       doc.save(`${titulo}_${fecha}.pdf`);

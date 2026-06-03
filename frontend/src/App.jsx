@@ -1,7 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider }    from './contexts/AuthContext';
 import { AbilityProvider } from './contexts/AbilityContext';
-import { ThemeProvider }   from './contexts/ThemeContext'; 
+import { ThemeProvider }   from './contexts/ThemeContext';
+import { ConfigProvider }  from './contexts/ConfigContext';
 import ProtectedRoute      from './components/ProtectedRoute';
 import Sidebar             from './components/sidebar';
 import PwaPrompt           from './components/PwaPrompt';
@@ -26,6 +27,8 @@ import VentaTicket    from './pages/ventas/VentaTicket';
 import Caja           from './pages/caja/Caja';
 import LayoutReportes from './pages/reportes/LayoutReportes';
 import Backups        from './pages/backups/Backups';
+import Configuracion from './pages/configuracion/Configuracion';
+import LibroCaja from './pages/libroCaja/LibroCaja';
 
 // Nota: Reportes/Órdenes de salida aún no están integrados aquí.
 
@@ -65,6 +68,7 @@ export default function App() {
     <BrowserRouter>
       <ThemeProvider>
       <AuthProvider>
+        <ConfigProvider>
         <AbilityProvider>
           {/* Notificaciones PWA: offline banner, update prompt, ready toast */}
           <PwaPrompt />
@@ -203,6 +207,20 @@ export default function App() {
               </PageRoute>
             }/>
 
+            {/* ── Configuración ──────────────────────────────────────────── */}
+            <Route path="/configuracion" element={
+              <PageRoute action="ver" subject="configuracion">
+                <Configuracion />
+              </PageRoute>
+            }/>
+
+            {/* ── Libro de Caja ──────────────────────────────────────────── */}
+            <Route path="/libro-caja" element={
+              <PageRoute action="ver" subject="movimientos">
+                <LibroCaja />
+              </PageRoute>
+            }/>
+
             {/* ── Dashboard ───────────────────────────────────────────── */}
             <Route path="/dashboard" element={
               <PageRoute>
@@ -217,6 +235,7 @@ export default function App() {
 
           </Routes>
         </AbilityProvider>
+        </ConfigProvider>
       </AuthProvider>
       </ThemeProvider>
     </BrowserRouter>

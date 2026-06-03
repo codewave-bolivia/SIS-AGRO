@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import ventaService from '../../services/venta.service';
+import { useConfig } from '../../contexts/ConfigContext';
 
 const fmt = (n) => Number(n ?? 0).toFixed(2);
 const fmtFecha = (s) =>
@@ -14,6 +15,7 @@ const fmtFecha = (s) =>
 export default function VentaTicket() {
   const { id }               = useParams();
   const navigate             = useNavigate();
+  const { configuracion }    = useConfig();
   const [venta, setVenta]    = useState(null);
   const [cargando, setCargando] = useState(true);
 
@@ -82,27 +84,40 @@ export default function VentaTicket() {
         >
           {/* Cabecera empresa */}
           <div style={{ textAlign: 'center', marginBottom: '4px' }}>
-            <img
-              src="/logo.png"
-              alt="Logo SIS-AGRO"
-              style={{
-                maxHeight: '140px',
-                maxWidth: '100%',
-                margin: '0 auto 4px',
-                display: 'block',
-                objectFit: 'contain',
-              }}
-              onError={(e) => { e.target.style.display = 'none'; }}
-            />
-            <div style={{ fontSize: '14px', fontWeight: 'bold' }}>SIS-AGRO</div>
+            {configuracion.logo && (
+              <img
+                src={configuracion.logo}
+                alt={configuracion.nombre_empresa}
+                style={{
+                  maxHeight: '140px',
+                  maxWidth: '100%',
+                  margin: '0 auto 4px',
+                  display: 'block',
+                  objectFit: 'contain',
+                }}
+              />
+            )}
+            <div style={{ fontSize: '14px', fontWeight: 'bold' }}>
+              {configuracion.nombre_empresa}
+            </div>
+            {configuracion.nit && (
+              <div style={{ fontSize: '10px' }}>NIT: {configuracion.nit}</div>
+            )}
             {venta.sucursal_nombre && <div>{venta.sucursal_nombre}</div>}
-            {venta.sucursal_direccion && (
+            {venta.sucursal_direccion ? (
               <div style={{ fontSize: '10px' }}>
                 {venta.sucursal_direccion}
                 {venta.sucursal_ciudad ? `, ${venta.sucursal_ciudad}` : ''}
               </div>
+            ) : configuracion.direccion ? (
+              <div style={{ fontSize: '10px' }}>
+                {configuracion.direccion}
+                {configuracion.ciudad ? `, ${configuracion.ciudad}` : ''}
+              </div>
+            ) : null}
+            {(venta.sucursal_telefono || configuracion.telefono) && (
+              <div>Tel: {venta.sucursal_telefono || configuracion.telefono}</div>
             )}
-            {venta.sucursal_telefono && <div>Tel: {venta.sucursal_telefono}</div>}
           </div>
 
           <div style={sep} />
@@ -229,7 +244,7 @@ export default function VentaTicket() {
           {/* Pie */}
           <div style={{ textAlign: 'center', fontSize: '10px', marginTop: '4px' }}>
             <div>¡Gracias por su compra!</div>
-            <div style={{ marginTop: '2px' }}>SIS-AGRO · Sistema Agropecuario</div>
+            <div style={{ marginTop: '2px' }}>{configuracion.nombre_empresa}</div>
           </div>
         </div>
       </div>
