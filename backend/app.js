@@ -35,6 +35,7 @@ const corsOptions = {
   credentials: true,
 };
 
+app.set('trust proxy', 1); // confiar en X-Forwarded-Proto del proxy HTTPS
 app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
