@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import configuracionService from '../services/configuracion.service';
+import axios from 'axios';
 
 const ConfigContext = createContext(null);
 
@@ -18,7 +18,8 @@ export function ConfigProvider({ children }) {
 
   const recargarConfig = useCallback(async () => {
     try {
-      const res = await configuracionService.obtener();
+      const base = import.meta.env.VITE_API_URL || '';
+      const res = await axios.get(`${base}/configuracion`);
       setConfiguracion({ ...CONFIG_DEFECTO, ...res.data });
     } catch { /* silencioso — usa valores por defecto */ }
   }, []);

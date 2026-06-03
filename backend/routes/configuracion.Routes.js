@@ -2,9 +2,9 @@ const router = require('express').Router();
 const { authMiddleware, checkPermission } = require('../middlewares/authMiddleware');
 const ctrl = require('../controllers/configuracion.Controller');
 
-router.use(authMiddleware);
+// GET es público — logo y nombre aparecen en la página de login
+router.get('/', ctrl.obtener);
 
-router.get('/', checkPermission('ver',    'configuracion'), ctrl.obtener);
-router.put('/', checkPermission('editar', 'configuracion'), ctrl.actualizar);
+router.put('/', authMiddleware, checkPermission('editar', 'configuracion'), ctrl.actualizar);
 
 module.exports = router;
