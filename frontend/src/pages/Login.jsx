@@ -5,6 +5,27 @@ import { FaEnvelope, FaLock, FaSpinner, FaEye, FaEyeSlash } from 'react-icons/fa
 import { useAuth }           from '../contexts/AuthContext';
 import { useAbilityUpdater } from '../contexts/AbilityContext';
 import { useConfig }         from '../contexts/ConfigContext';
+import { buildAbility }      from '../casl/ability';
+
+// Rutas que requieren un permiso específico para acceder
+const PERMISOS_RUTA = {
+  '/roles':          { action: 'ver',   subject: 'roles' },
+  '/usuarios':       { action: 'ver',   subject: 'usuarios' },
+  '/sucursales':     { action: 'ver',   subject: 'sucursales' },
+  '/configuracion':  { action: 'ver',   subject: 'configuracion' },
+  '/compras':        { action: 'ver',   subject: 'compras' },
+  '/compras/nueva':  { action: 'crear', subject: 'compras' },
+  '/proveedores':    { action: 'ver',   subject: 'proveedores' },
+  '/catalogos':      { action: 'ver',   subject: 'clasificaciones' },
+  '/libro-caja':     { action: 'ver',   subject: 'movimientos' },
+  '/backups':        { action: 'ver',   subject: 'roles' },
+  '/almacen':        { action: 'ver',   subject: 'almacen' },
+  '/productos':      { action: 'ver',   subject: 'productos' },
+  '/clientes':       { action: 'ver',   subject: 'clientes' },
+  '/ventas':         { action: 'ver',   subject: 'ventas' },
+  '/ventas/nueva':   { action: 'crear', subject: 'ventas' },
+  '/caja':           { action: 'ver',   subject: 'caja' },
+};
 
 const Login = () => {
   const [identificador,    setIdentificador]    = useState('');
@@ -26,8 +47,13 @@ const Login = () => {
 
     try {
       const usuario = await login(identificador.trim(), contrasena);
-      actualizar(usuario.permisos ?? []);
-      navigate(destino, { replace: true });
+      const permisos = usuario.permisos ?? [];
+      actualizar(permisos);
+
+      // Si el destino requiere un permiso que el usuario no tiene, ir al dashboard
+      const requerido = PERMISOS_RUTA[destino];
+      const puedeIr   = !requerido || buildAbility(permisos).can(requerido.action, requerido.subject);
+      navigate(puedeIr ? destino : '/dashboard', { replace: true });
     } catch {
       // El error ya está en el estado `error` de AuthContext
     }
