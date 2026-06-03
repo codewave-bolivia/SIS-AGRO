@@ -4,9 +4,10 @@ const db   = require('../config/db');
 
 const UPLOADS_DIR = path.join(__dirname, '../uploads');
 
-function buildLogoUrl(req, logoPath) {
+function buildLogoUrl(req, logoPath, updatedAt) {
   if (!logoPath) return null;
-  return `${req.protocol}://${req.get('host')}${logoPath}`;
+  const ts = updatedAt ? new Date(updatedAt).getTime() : Date.now();
+  return `${req.protocol}://${req.get('host')}${logoPath}?v=${ts}`;
 }
 
 function eliminarLogoAnterior() {
@@ -29,7 +30,7 @@ const obtener = async (req, res) => {
         telefono: null, correo: null, logo: null,
       });
     }
-    const config = { ...rows[0], logo: buildLogoUrl(req, rows[0].logo) };
+    const config = { ...rows[0], logo: buildLogoUrl(req, rows[0].logo, rows[0].actualizado_en) };
     return res.json(config);
   } catch (err) {
     console.error('[obtener]', err);
@@ -96,7 +97,7 @@ const actualizar = async (req, res) => {
     const [rows] = await db.promise().query(
       'SELECT * FROM configuracion WHERE id_config = 1'
     );
-    const config = { ...rows[0], logo: buildLogoUrl(req, rows[0].logo) };
+    const config = { ...rows[0], logo: buildLogoUrl(req, rows[0].logo, rows[0].actualizado_en) };
     return res.json(config);
   } catch (err) {
     console.error('[actualizar]', err);
