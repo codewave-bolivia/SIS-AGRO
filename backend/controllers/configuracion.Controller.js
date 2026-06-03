@@ -2,8 +2,7 @@ const fs   = require('fs');
 const path = require('path');
 const db   = require('../config/db');
 
-const LOGO_EXTS    = ['png', 'jpg', 'jpeg', 'webp'];
-const UPLOADS_DIR  = path.join(__dirname, '../uploads');
+const UPLOADS_DIR = path.join(__dirname, '../uploads');
 
 function buildLogoUrl(req, logoPath) {
   if (!logoPath) return null;
@@ -11,10 +10,11 @@ function buildLogoUrl(req, logoPath) {
 }
 
 function eliminarLogoAnterior() {
-  LOGO_EXTS.forEach(ext => {
-    const f = path.join(UPLOADS_DIR, `config-logo.${ext}`);
-    if (fs.existsSync(f)) fs.unlinkSync(f);
-  });
+  try {
+    fs.readdirSync(UPLOADS_DIR)
+      .filter(f => f.startsWith('config-logo.'))
+      .forEach(f => fs.unlinkSync(path.join(UPLOADS_DIR, f)));
+  } catch { /* silencioso */ }
 }
 
 const obtener = async (req, res) => {

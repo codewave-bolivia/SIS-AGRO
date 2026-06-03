@@ -165,7 +165,7 @@ export default function Configuracion() {
                       <input
                         ref={fileInputRef}
                         type="file"
-                        accept="image/png,image/jpeg,image/webp"
+                        accept="image/*"
                         className="hidden"
                         onChange={handleLogoChange}
                       />
@@ -181,7 +181,7 @@ export default function Configuracion() {
                   </>
                 )}
                 <p className="text-xs text-zinc-400 dark:text-zinc-500 text-center sm:text-left">
-                  PNG, JPG o WEBP · Máx 5 MB
+                  Cualquier imagen (PNG, JPG, GIF, SVG…) · Máx 5 MB
                 </p>
               </div>
             </div>
