@@ -70,7 +70,6 @@ const Login = () => {
             Acceso al Sistema
           </h2>
         </div>
-
         {error && (
           <div className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-400 px-4 py-3 rounded-xl mb-6 text-sm flex items-center shadow-[0_0_15px_rgba(239,68,68,0.05)] dark:shadow-[0_0_15px_rgba(239,68,68,0.1)] backdrop-blur-md">
             <svg className="w-5 h-5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
@@ -85,7 +84,7 @@ const Login = () => {
           {/* Identificador */}
           <div className="space-y-1.5">
             <label htmlFor="identificador" className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300">
-              ID / Correo
+              Correo
             </label>
             <div className="relative group/input">
               <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none transition-colors group-focus-within/input:text-emerald-500 dark:group-focus-within/input:text-emerald-400 text-slate-400 dark:text-slate-500">
@@ -94,7 +93,7 @@ const Login = () => {
               <input
                 type="text"
                 id="identificador"
-                placeholder="Correo o CI"
+                placeholder="Correo"
                 value={identificador}
                 onChange={(e) => setIdentificador(e.target.value)}
                 required
