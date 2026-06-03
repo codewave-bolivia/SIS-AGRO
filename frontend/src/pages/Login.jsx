@@ -69,9 +69,6 @@ const Login = () => {
           <h2 className="text-2xl sm:text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-lime-500 dark:from-emerald-400 dark:to-lime-300 tracking-tight">
             Acceso al Sistema
           </h2>
-          <p className="mt-2 text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium tracking-wide uppercase letter-spacing-1">
-            Gestión Agropecuaria 2.0
-          </p>
         </div>
 
         {error && (
