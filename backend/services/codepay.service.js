@@ -52,7 +52,7 @@ function generarOrderId() {
 function buildCheckoutUrl(token) {
   const base    = process.env.CODEPAY_GATEWAY_URL || 'https://pay.codepay.bo';
   const appKey  = process.env.CODEPAY_PUBLIC_KEY;
-  return `${base}/checkout/${token}&lang=es&app_key=${appKey}`;
+  return `${base}/checkout/${token}?lang=es&app_key=${appKey}`;
 }
 
 module.exports = { signCheckoutToken, verifyWebhookSignature, generarOrderId, buildCheckoutUrl };
