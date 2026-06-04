@@ -104,7 +104,7 @@ export default function VentaTicket() {
           🖨️ Imprimir (80mm)
         </button>
         <button
-          onClick={() => navigate(-1)}
+          onClick={() => navigate('/ventas')}
           className="px-5 py-2 rounded-xl border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 font-semibold text-sm transition-colors"
         >
           ← Volver
