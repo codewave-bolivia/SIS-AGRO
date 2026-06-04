@@ -22,6 +22,7 @@ const backupRoutes      = require('./routes/backup.Routes');
 const configuracionRoutes = require('./routes/configuracion.Routes');
 const movimientosRoutes          = require('./routes/movimientos.Routes');
 const categoriasMovimientoRoutes = require('./routes/categoriasMovimiento.Routes');
+const webhookRoutes              = require('./routes/webhook.Routes');
 const { iniciarScheduler } = require('./services/backup.service');
 const app = express();
 
@@ -37,6 +38,11 @@ const corsOptions = {
 
 app.set('trust proxy', 1); // confiar en X-Forwarded-Proto del proxy HTTPS
 app.use(cors(corsOptions));
+
+// El webhook de CodePay necesita el body como Buffer para verificar la firma.
+// Se registra ANTES del parser JSON global para que express.raw() lo procese primero.
+app.use('/api/webhooks', express.raw({ type: 'application/json' }), webhookRoutes);
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 

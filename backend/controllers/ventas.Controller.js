@@ -1,4 +1,114 @@
 const db = require('../config/db');
+const { signCheckoutToken, generarOrderId, buildCheckoutUrl } = require('../services/codepay.service');
+
+// ── Helper privado: lógica FIFO compartida por crear e iniciarPagoQR ──────
+async function _insertarVentaFIFO(connection, {
+  id_sucursal, id_usuario, id_cliente, nro_factura, tipo_venta,
+  subtotal, descuento_total, total, monto_pagado, cambio,
+  metodo_pago, observaciones, detalles,
+  estado, codepay_order_id,
+}) {
+  // 1. Validar y acumular requerimientos por producto
+  const requerimientos = {};
+  for (const item of detalles) {
+    if (!requerimientos[item.id_producto]) {
+      requerimientos[item.id_producto] = { cantidadRequerida: 0, itemsOriginales: [] };
+    }
+    let unidades_a_descontar = parseFloat(item.cantidad);
+    if (item.tipo_cantidad === 'CAJA') {
+      if (!item.unidades_por_caja) {
+        throw new Error(`Falta el parámetro unidades_por_caja para el producto ID ${item.id_producto} que se vende por CAJA.`);
+      }
+      unidades_a_descontar = parseFloat(item.cantidad) * parseFloat(item.unidades_por_caja);
+    }
+    requerimientos[item.id_producto].cantidadRequerida += unidades_a_descontar;
+    requerimientos[item.id_producto].itemsOriginales.push({ ...item, unidades_totales: unidades_a_descontar });
+  }
+
+  // 2. Insertar cabecera de venta
+  const [ventaResult] = await connection.query(
+    `INSERT INTO venta
+      (id_sucursal, id_usuario, id_cliente, nro_factura, tipo_venta, subtotal, descuento_total,
+       total, monto_pagado, cambio, metodo_pago, estado, observaciones, codepay_order_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      id_sucursal, id_usuario, id_cliente || null, nro_factura || null,
+      tipo_venta || 'MENOR', subtotal, descuento_total, total,
+      monto_pagado, cambio, metodo_pago || 'EFECTIVO',
+      estado, observaciones || null,
+      codepay_order_id || null,
+    ]
+  );
+  const id_venta = ventaResult.insertId;
+
+  // 3. Procesar FIFO por producto
+  for (const id_producto in requerimientos) {
+    let unidadesFaltantes = requerimientos[id_producto].cantidadRequerida;
+
+    const [lotes] = await connection.query(
+      `SELECT id_lote, stock_unidades, unidades_por_caja, numero_lote
+       FROM lote
+       WHERE id_producto = ? AND id_sucursal = ? AND stock_unidades > 0 AND activo = 1
+       ORDER BY fecha_vencimiento ASC, id_lote ASC FOR UPDATE`,
+      [id_producto, id_sucursal]
+    );
+
+    const stockDisponible = lotes.reduce((acc, l) => acc + l.stock_unidades, 0);
+    if (stockDisponible < unidadesFaltantes) {
+      throw new Error(`Stock insuficiente para el producto ID ${id_producto}. Requerido: ${unidadesFaltantes}, Disponible: ${stockDisponible}`);
+    }
+
+    let indexLote = 0;
+    for (const itemOriginal of requerimientos[id_producto].itemsOriginales) {
+      let unidadesItemFaltantes = itemOriginal.unidades_totales;
+
+      while (unidadesItemFaltantes > 0 && indexLote < lotes.length) {
+        const loteActual = lotes[indexLote];
+        const descontarDeEsteLote = Math.min(unidadesItemFaltantes, loteActual.stock_unidades);
+
+        loteActual.stock_unidades -= descontarDeEsteLote;
+        unidadesItemFaltantes     -= descontarDeEsteLote;
+
+        const proporcion      = descontarDeEsteLote / itemOriginal.unidades_totales;
+        const cantParaDetalle = parseFloat(itemOriginal.cantidad) * proporcion;
+        const subtotalDetalle = parseFloat(itemOriginal.subtotal) * proporcion;
+        const descMontoDetalle = parseFloat(itemOriginal.descuento_monto || 0) * proporcion;
+
+        await connection.query(
+          `INSERT INTO detalle_venta
+            (id_venta, id_lote, id_producto, tipo_cantidad, cantidad, precio_unitario, descuento_pct, descuento_monto, subtotal)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            id_venta, loteActual.id_lote, id_producto, itemOriginal.tipo_cantidad,
+            cantParaDetalle, itemOriginal.precio_unitario, itemOriginal.descuento_pct || 0,
+            descMontoDetalle, subtotalDetalle,
+          ]
+        );
+
+        const nuevasCajas = Math.floor(loteActual.stock_unidades / loteActual.unidades_por_caja);
+        await connection.query(
+          'UPDATE lote SET stock_unidades = ?, stock_cajas = ? WHERE id_lote = ?',
+          [loteActual.stock_unidades, nuevasCajas, loteActual.id_lote]
+        );
+
+        await connection.query(
+          `INSERT INTO movimiento_almacen
+            (id_lote, id_sucursal, id_usuario, tipo, motivo, cantidad_cajas, cantidad_unidades, referencia_id, referencia_tipo)
+           VALUES (?, ?, ?, 'SALIDA', 'VENTA', ?, ?, ?, 'VENTA')`,
+          [
+            loteActual.id_lote, id_sucursal, id_usuario,
+            Math.floor(descontarDeEsteLote / loteActual.unidades_por_caja), descontarDeEsteLote,
+            id_venta,
+          ]
+        );
+
+        if (loteActual.stock_unidades === 0) indexLote++;
+      }
+    }
+  }
+
+  return id_venta;
+}
 
 // Listar todas las ventas
 const listar = async (req, res) => {
@@ -57,155 +167,127 @@ const obtener = async (req, res) => {
   }
 };
 
-// Crear nueva venta con lógica FIFO para Lotes
+// Crear nueva venta (pago inmediato: efectivo, transferencia, crédito, etc.)
 const crear = async (req, res) => {
-  const { 
-    id_cliente, nro_factura, tipo_venta, subtotal, 
-    descuento_total, total, monto_pagado, cambio, 
-    metodo_pago, observaciones, detalles 
+  const {
+    id_cliente, nro_factura, tipo_venta, subtotal,
+    descuento_total, total, monto_pagado, cambio,
+    metodo_pago, observaciones, detalles,
   } = req.body;
-  
-  const id_usuario = req.user.id_usuario;
-  const id_sucursal = req.user.id_sucursal;
 
   if (!detalles || detalles.length === 0) {
     return res.status(400).json({ error: 'El carrito de ventas está vacío.' });
   }
 
   const connection = await db.promise().getConnection();
-  
   try {
     await connection.beginTransaction();
-
-    // 1. Validar Stock General antes de insertar la cabecera
-    // Acumular la cantidad total requerida por producto (convirtiendo cajas a unidades si es necesario)
-    const requerimientos = {};
-    for (const item of detalles) {
-      if (!requerimientos[item.id_producto]) {
-        requerimientos[item.id_producto] = {
-          cantidadRequerida: 0,
-          itemsOriginales: [] // Guardamos las referencias para repartir los montos luego
-        };
-      }
-      
-      // Obtener unidades por caja del producto si el tipo es CAJA
-      let unidades_a_descontar = parseFloat(item.cantidad);
-      if (item.tipo_cantidad === 'CAJA') {
-        // Necesitamos saber cuántas unidades tiene la caja de ese producto.
-        // Asumiremos que el frontend envía item.unidades_por_caja para facilitar, o consultamos el catálogo/lote.
-        // Para mayor precisión, consultaremos la tabla de lotes durante el FIFO, pero como estimación:
-        if (!item.unidades_por_caja) {
-           throw new Error(`Falta el parámetro unidades_por_caja para el producto ID ${item.id_producto} que se vende por CAJA.`);
-        }
-        unidades_a_descontar = parseFloat(item.cantidad) * parseFloat(item.unidades_por_caja);
-      }
-
-      requerimientos[item.id_producto].cantidadRequerida += unidades_a_descontar;
-      requerimientos[item.id_producto].itemsOriginales.push({
-        ...item,
-        unidades_totales: unidades_a_descontar
-      });
-    }
-
-    // 2. Insertar Cabecera de la Venta
-    const [ventaResult] = await connection.query(
-      `INSERT INTO venta 
-        (id_sucursal, id_usuario, id_cliente, nro_factura, tipo_venta, subtotal, descuento_total, total, monto_pagado, cambio, metodo_pago, estado, observaciones) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'COMPLETADA', ?)`,
-      [
-        id_sucursal, id_usuario, id_cliente || null, nro_factura || null, 
-        tipo_venta || 'MENOR', subtotal, descuento_total, total, 
-        monto_pagado, cambio, metodo_pago || 'EFECTIVO', observaciones || null
-      ]
-    );
-    const id_venta = ventaResult.insertId;
-
-    // 3. Procesar FIFO por Producto
-    for (const id_producto in requerimientos) {
-      let unidadesFaltantes = requerimientos[id_producto].cantidadRequerida;
-
-      // Obtener lotes activos del producto ordenados por vencimiento (FIFO)
-      const [lotes] = await connection.query(
-        `SELECT id_lote, stock_unidades, unidades_por_caja, numero_lote 
-         FROM lote 
-         WHERE id_producto = ? AND id_sucursal = ? AND stock_unidades > 0 AND activo = 1 
-         ORDER BY fecha_vencimiento ASC, id_lote ASC FOR UPDATE`,
-        [id_producto, id_sucursal]
-      );
-
-      // Calcular stock total disponible
-      const stockDisponible = lotes.reduce((acc, l) => acc + l.stock_unidades, 0);
-      if (stockDisponible < unidadesFaltantes) {
-        throw new Error(`Stock insuficiente para el producto ID ${id_producto}. Requerido: ${unidadesFaltantes}, Disponible: ${stockDisponible}`);
-      }
-
-      // Descontar FIFO
-      // Como un itemOriginal en el carrito puede abarcar varios lotes (o fracciones), 
-      // generamos detalles de venta divididos por lote.
-      
-      let indexLote = 0;
-      for (const itemOriginal of requerimientos[id_producto].itemsOriginales) {
-        let unidadesItemFaltantes = itemOriginal.unidades_totales;
-
-        while (unidadesItemFaltantes > 0 && indexLote < lotes.length) {
-          const loteActual = lotes[indexLote];
-          const descontarDeEsteLote = Math.min(unidadesItemFaltantes, loteActual.stock_unidades);
-
-          // Actualizar memoria del lote
-          loteActual.stock_unidades -= descontarDeEsteLote;
-          unidadesItemFaltantes -= descontarDeEsteLote;
-
-          // Prorratear precios y descuentos para el detalle de venta
-          const proporcion = descontarDeEsteLote / itemOriginal.unidades_totales;
-          const cantParaDetalle = parseFloat(itemOriginal.cantidad) * proporcion;
-          const subtotalDetalle = parseFloat(itemOriginal.subtotal) * proporcion;
-          const descMontoDetalle = parseFloat(itemOriginal.descuento_monto || 0) * proporcion;
-
-          // Insertar Detalle Venta con ID Lote
-          await connection.query(
-            `INSERT INTO detalle_venta 
-              (id_venta, id_lote, id_producto, tipo_cantidad, cantidad, precio_unitario, descuento_pct, descuento_monto, subtotal) 
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [
-              id_venta, loteActual.id_lote, id_producto, itemOriginal.tipo_cantidad, 
-              cantParaDetalle, itemOriginal.precio_unitario, itemOriginal.descuento_pct || 0, descMontoDetalle, subtotalDetalle
-            ]
-          );
-
-          // Actualizar Lote en BD
-          const nuevasCajas = Math.floor(loteActual.stock_unidades / loteActual.unidades_por_caja);
-          await connection.query(
-            'UPDATE lote SET stock_unidades = ?, stock_cajas = ? WHERE id_lote = ?',
-            [loteActual.stock_unidades, nuevasCajas, loteActual.id_lote]
-          );
-
-          // Insertar Movimiento Almacén (SALIDA)
-          await connection.query(
-            `INSERT INTO movimiento_almacen 
-              (id_lote, id_sucursal, id_usuario, tipo, motivo, cantidad_cajas, cantidad_unidades, referencia_id, referencia_tipo)
-             VALUES (?, ?, ?, 'SALIDA', 'VENTA', ?, ?, ?, 'VENTA')`,
-            [
-              loteActual.id_lote, id_sucursal, id_usuario, 
-              Math.floor(descontarDeEsteLote / loteActual.unidades_por_caja), descontarDeEsteLote, 
-              id_venta
-            ]
-          );
-
-          // Si el lote se agotó, pasar al siguiente en la próxima iteración del while
-          if (loteActual.stock_unidades === 0) {
-            indexLote++;
-          }
-        }
-      }
-    }
-
+    const id_venta = await _insertarVentaFIFO(connection, {
+      id_sucursal:  req.user.id_sucursal,
+      id_usuario:   req.user.id_usuario,
+      id_cliente, nro_factura, tipo_venta, subtotal,
+      descuento_total, total, monto_pagado, cambio,
+      metodo_pago, observaciones, detalles,
+      estado:             'COMPLETADA',
+      codepay_order_id:   null,
+    });
     await connection.commit();
     return res.status(201).json({ mensaje: 'Venta registrada con éxito', id_venta });
-
   } catch (err) {
     await connection.rollback();
     console.error('Error al procesar venta:', err);
     return res.status(500).json({ error: err.message || 'Error interno al registrar la venta' });
+  } finally {
+    connection.release();
+  }
+};
+
+// Iniciar pago QR mediante CodePay
+// Crea la venta como PENDIENTE (stock ya descontado), genera el JWT de checkout y devuelve la URL.
+const iniciarPagoQR = async (req, res) => {
+  const {
+    id_cliente, nro_factura, tipo_venta, subtotal,
+    descuento_total, total, monto_pagado, cambio,
+    observaciones, detalles,
+  } = req.body;
+
+  if (!detalles || detalles.length === 0) {
+    return res.status(400).json({ error: 'El carrito de ventas está vacío.' });
+  }
+
+  if (!process.env.CODEPAY_PUBLIC_KEY || !process.env.CODEPAY_SECRET_KEY) {
+    return res.status(503).json({ error: 'Pago QR no configurado. Contacta al administrador.' });
+  }
+
+  const id_usuario  = req.user.id_usuario;
+  const id_sucursal = req.user.id_sucursal;
+  const order_id    = generarOrderId();
+
+  const connection = await db.promise().getConnection();
+  try {
+    await connection.beginTransaction();
+
+    const id_venta = await _insertarVentaFIFO(connection, {
+      id_sucursal, id_usuario,
+      id_cliente, nro_factura, tipo_venta, subtotal,
+      descuento_total, total,
+      monto_pagado: parseFloat(total), // se actualizará al confirmar el pago
+      cambio: 0,
+      metodo_pago: 'QR',
+      observaciones, detalles,
+      estado:           'PENDIENTE',
+      codepay_order_id: order_id,
+    });
+
+    await connection.commit();
+
+    // Obtener nombres de productos para el payload de CodePay
+    const idProductos = [...new Set(detalles.map(d => d.id_producto))];
+    const placeholders = idProductos.map(() => '?').join(',');
+    const [productos] = await db.promise().query(
+      `SELECT id_producto, nombre, codigo_barras FROM producto WHERE id_producto IN (${placeholders})`,
+      idProductos
+    );
+    const nombresProd = Object.fromEntries(productos.map(p => [p.id_producto, p]));
+
+    // Construir items para CodePay (unit_price = subtotal / cantidad → garantiza que Σ = total)
+    const items = detalles.map(d => {
+      const prod        = nombresProd[d.id_producto] || {};
+      const cantidad    = parseFloat(d.cantidad);
+      const subtotalD   = parseFloat(d.subtotal);
+      const unitPrice   = cantidad > 0 ? Math.round((subtotalD / cantidad) * 100) / 100 : 0;
+      const item = {
+        name:       (prod.nombre || `Producto ${d.id_producto}`).slice(0, 50),
+        quantity:   cantidad,
+        unit_price: unitPrice,
+      };
+      if (prod.codigo_barras) item.sku = prod.codigo_barras;
+      return item;
+    });
+
+    const baseUrl = (process.env.BASE_URL || 'http://localhost:5173').trim();
+
+    const payload = {
+      app_key:          process.env.CODEPAY_PUBLIC_KEY,
+      order_id,
+      amount:           parseFloat(total),
+      currency:         'BOB',
+      description:      'Compra SIS AGRO',
+      items,
+      redirect_success: `${baseUrl}/ventas/${id_venta}/ticket`,
+      redirect_failure: `${baseUrl}/ventas/nueva?qr_failed=1&vid=${id_venta}`,
+      expires_at:       new Date(Date.now() + 30 * 60_000).toISOString(),
+    };
+
+    const token       = signCheckoutToken(payload, process.env.CODEPAY_SECRET_KEY);
+    const checkout_url = buildCheckoutUrl(token);
+
+    return res.status(201).json({ id_venta, checkout_url });
+
+  } catch (err) {
+    await connection.rollback();
+    console.error('Error al iniciar pago QR:', err);
+    return res.status(500).json({ error: err.message || 'Error interno al iniciar el pago QR' });
   } finally {
     connection.release();
   }
@@ -317,6 +399,7 @@ module.exports = {
   listar,
   obtener,
   crear,
+  iniciarPagoQR,
   anular,
   listarProductosPOS,
 };

@@ -4,8 +4,9 @@ const ventaService = {
   listarProductosPOS: () => api.get('/ventas/pos-productos'),
   listar:  () => api.get('/ventas'),
   obtener: (id) => api.get(`/ventas/${id}`),
-  crear:   (data) => api.post('/ventas', data),
-  anular:  (id) => api.patch(`/ventas/${id}/anular`)
+  crear:        (data) => api.post('/ventas', data),
+  iniciarPagoQR:(data) => api.post('/ventas/checkout-qr', data),
+  anular:       (id)  => api.patch(`/ventas/${id}/anular`)
 };
 
 export default ventaService;

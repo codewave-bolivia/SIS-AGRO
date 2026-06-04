@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import ventaService from '../../services/venta.service';
 import { useConfig } from '../../contexts/ConfigContext';
@@ -17,7 +17,9 @@ export default function VentaTicket() {
   const navigate             = useNavigate();
   const { configuracion }    = useConfig();
   const [venta, setVenta]    = useState(null);
-  const [cargando, setCargando] = useState(true);
+  const [cargando, setCargando]       = useState(true);
+  const [esperandoPago, setEsperandoPago] = useState(false);
+  const pollingRef = useRef(null);
 
   useEffect(() => {
     ventaService
@@ -27,6 +29,24 @@ export default function VentaTicket() {
       .finally(() => setCargando(false));
   }, [id]); // eslint-disable-line
 
+  // Polling para ventas QR PENDIENTES: verifica cada 3 seg si el banco confirmó el pago
+  useEffect(() => {
+    if (venta?.estado === 'PENDIENTE' && venta?.metodo_pago === 'QR') {
+      setEsperandoPago(true);
+      pollingRef.current = setInterval(async () => {
+        try {
+          const r = await ventaService.obtener(id);
+          if (r.data.estado !== 'PENDIENTE') {
+            setVenta(r.data);
+            setEsperandoPago(false);
+            clearInterval(pollingRef.current);
+          }
+        } catch { /* silencioso */ }
+      }, 3000);
+    }
+    return () => clearInterval(pollingRef.current);
+  }, [venta?.estado, venta?.metodo_pago]); // eslint-disable-line
+
   if (cargando)
     return (
       <div className="flex items-center justify-center py-32 text-zinc-400">
@@ -34,6 +54,29 @@ export default function VentaTicket() {
       </div>
     );
   if (!venta) return null;
+
+  // Pantalla de espera mientras el QR no ha sido pagado
+  if (esperandoPago && venta.estado === 'PENDIENTE') {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-50 dark:bg-zinc-950 gap-6 p-6">
+        <div className="w-16 h-16 rounded-full border-4 border-blue-200 dark:border-blue-800 border-t-blue-500 animate-spin" />
+        <div className="text-center space-y-2">
+          <h2 className="text-xl font-bold text-zinc-800 dark:text-white">Esperando confirmación de pago</h2>
+          <p className="text-zinc-500 text-sm">El cliente debe escanear el QR y completar el pago.</p>
+          <p className="text-zinc-400 text-xs">Esta página se actualizará automáticamente cuando el banco confirme la transacción.</p>
+        </div>
+        <div className="text-sm text-zinc-500 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-2">
+          Venta #{venta.id_venta.toString().padStart(6, '0')} · Bs {fmt(venta.total)}
+        </div>
+        <button
+          onClick={() => navigate('/ventas/nueva')}
+          className="text-sm text-zinc-400 hover:text-zinc-600 underline"
+        >
+          Volver al POS
+        </button>
+      </div>
+    );
+  }
 
   const clienteNombre = venta.cliente_nombre
     ? `${venta.cliente_nombre} ${venta.cliente_apellido || ''}`.trim()
@@ -213,10 +256,23 @@ export default function VentaTicket() {
               <span>Pagado Bs:</span>
               <span>{fmt(venta.monto_pagado)}</span>
             </div>
-            <div style={row}>
-              <span>Cambio Bs:</span>
-              <span>{fmt(venta.cambio)}</span>
-            </div>
+            {venta.metodo_pago !== 'QR' && (
+              <div style={row}>
+                <span>Cambio Bs:</span>
+                <span>{fmt(venta.cambio)}</span>
+              </div>
+            )}
+            {venta.metodo_pago === 'QR' && venta.codepay_voucher && (
+              <div style={row}>
+                <span>Voucher:</span>
+                <span style={{ fontWeight: 'bold' }}>{venta.codepay_voucher}</span>
+              </div>
+            )}
+            {venta.metodo_pago === 'QR' && venta.codepay_tx_id && (
+              <div style={{ fontSize: '9px', color: '#555', marginTop: '2px' }}>
+                Ref: {venta.codepay_tx_id}
+              </div>
+            )}
           </div>
 
           {/* Sello ANULADA */}

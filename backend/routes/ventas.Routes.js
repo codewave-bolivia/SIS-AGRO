@@ -6,9 +6,10 @@ router.use(authMiddleware);
 
 router.get('/pos-productos', checkPermission('crear', 'ventas'), ctrl.listarProductosPOS);
 
-router.get('/', checkPermission('ver', 'ventas'), ctrl.listar);
-router.get('/:id', checkPermission('ver', 'ventas'), ctrl.obtener);
-router.post('/', checkPermission('crear', 'ventas'), ctrl.crear);
+router.get('/',    checkPermission('ver',    'ventas'), ctrl.listar);
+router.get('/:id', checkPermission('ver',    'ventas'), ctrl.obtener);
+router.post('/',   checkPermission('crear',  'ventas'), ctrl.crear);
+router.post('/checkout-qr', checkPermission('crear', 'ventas'), ctrl.iniciarPagoQR);
 router.patch('/:id/anular', checkPermission('anular', 'ventas'), ctrl.anular);
 
 module.exports = router;

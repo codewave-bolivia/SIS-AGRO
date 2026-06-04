@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import ventaService from '../../services/venta.service';
 import clienteService from '../../services/cliente.service';
 import { usePermission } from '../../hooks/usePermission';
@@ -19,7 +19,8 @@ function Toast({ toast }) {
 }
 
 export default function NuevaVenta() {
-  const navigate = useNavigate();
+  const navigate       = useNavigate();
+  const [searchParams] = useSearchParams();
   const { puede } = usePermission();
 
   const [clientes, setClientes] = useState([]);
@@ -48,7 +49,11 @@ export default function NuevaVenta() {
   useEffect(() => {
     cargarDatos();
     busquedaRef.current?.focus();
-  }, []);
+    // Si venimos de un pago QR fallido/cancelado, mostrar aviso
+    if (searchParams.get('qr_failed')) {
+      mostrarToast('error', 'El pago con QR fue cancelado o expiró. Puede intentarlo de nuevo.');
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Recalcular precios del carrito cuando cambia el tipo de venta
   useEffect(() => {
@@ -184,43 +189,59 @@ export default function NuevaVenta() {
   const puedeDescuentoLibre = puede('descuento_libre', 'ventas');
   const puedeCambiarPrecio = puede('cambiar_precio', 'ventas');
 
+  const buildPayload = () => {
+    const factor = 1 - (parseFloat(descuentoPct) || 0) / 100;
+    return {
+      id_cliente:      idCliente || null,
+      nro_factura:     nroFactura || null,
+      tipo_venta:      tipoVenta,
+      subtotal:        totales.subtotal,
+      descuento_total: totales.descuento_total,
+      total:           totales.total,
+      monto_pagado:    parseFloat(montoPagado) || totales.total,
+      cambio:          totales.cambio > 0 ? totales.cambio : 0,
+      metodo_pago:     metodoPago,
+      detalles: carrito.map(c => ({
+        id_producto:      c.id_producto,
+        nombre:           c.nombre,
+        tipo_cantidad:    c.tipo_cantidad,
+        cantidad:         parseFloat(c.cantidad),
+        precio_unitario:  parseFloat(c.precio_unitario),
+        unidades_por_caja: c.unidades_por_caja,
+        descuento_pct:    parseFloat(descuentoPct) || 0,
+        descuento_monto:  parseFloat(c.subtotal) * (1 - factor),
+        subtotal:         parseFloat(c.subtotal) * factor,
+      })),
+    };
+  };
+
   const finalizarVenta = async () => {
     if (carrito.length === 0) { mostrarToast('error', 'El carrito está vacío'); return; }
-    if (totales.total <= 0) { mostrarToast('error', 'El total debe ser mayor a 0'); return; }
-    if (parseFloat(montoPagado) > 0 && totales.cambio < 0) { mostrarToast('error', 'El monto pagado es insuficiente'); return; }
+    if (totales.total <= 0)   { mostrarToast('error', 'El total debe ser mayor a 0'); return; }
     const sinPrecio = carrito.find(c => parseFloat(c.precio_unitario) <= 0);
     if (sinPrecio) { mostrarToast('error', `Establezca precio para: ${sinPrecio.nombre}`); return; }
+    if (metodoPago !== 'QR' && parseFloat(montoPagado) > 0 && totales.cambio < 0) {
+      mostrarToast('error', 'El monto pagado es insuficiente'); return;
+    }
 
     setGuardando(true);
     try {
-      const payload = {
-        id_cliente: idCliente || null,
-        nro_factura: nroFactura || null,
-        tipo_venta: tipoVenta,
-        subtotal: totales.subtotal,
-        descuento_total: totales.descuento_total,
-        total: totales.total,
-        monto_pagado: parseFloat(montoPagado) || totales.total,
-        cambio: totales.cambio > 0 ? totales.cambio : 0,
-        metodo_pago: metodoPago,
-        detalles: carrito.map(c => ({
-          id_producto: c.id_producto,
-          tipo_cantidad: c.tipo_cantidad,
-          cantidad: parseFloat(c.cantidad),
-          precio_unitario: parseFloat(c.precio_unitario),
-          unidades_por_caja: c.unidades_por_caja,
-          descuento_pct: parseFloat(descuentoPct) || 0,
-          descuento_monto: (parseFloat(c.subtotal) * ((parseFloat(descuentoPct) || 0) / 100)),
-          subtotal: parseFloat(c.subtotal) * (1 - (parseFloat(descuentoPct) || 0) / 100),
-        }))
-      };
-      const res = await ventaService.crear(payload);
-      mostrarToast('ok', 'Venta registrada correctamente');
-      setVentaCompletadaId(res.data.id_venta);
-      setCarrito([]);
-      setMontoPagado('');
-      setNroFactura('');
-      setDescuentoPct('');
+      const payload = buildPayload();
+
+      if (metodoPago === 'QR') {
+        // Flujo QR: crear venta PENDIENTE y redirigir al checkout de CodePay
+        const res = await ventaService.iniciarPagoQR(payload);
+        // Redirigir a la pasarela de pago (sale del SPA)
+        window.location.href = res.data.checkout_url;
+      } else {
+        const res = await ventaService.crear(payload);
+        mostrarToast('ok', 'Venta registrada correctamente');
+        setVentaCompletadaId(res.data.id_venta);
+        setCarrito([]);
+        setMontoPagado('');
+        setNroFactura('');
+        setDescuentoPct('');
+      }
     } catch (err) {
       mostrarToast('error', err.response?.data?.error || 'Error al procesar la venta');
     } finally {
@@ -405,7 +426,7 @@ export default function NuevaVenta() {
           <span className="text-2xl">Bs {totales.total.toFixed(2)}</span>
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
+        <div className={`grid gap-2 ${metodoPago === 'QR' ? 'grid-cols-1' : 'grid-cols-2'}`}>
           <div>
             <label className="text-xs text-zinc-500 mb-1 block">Método</label>
             <select
@@ -414,25 +435,34 @@ export default function NuevaVenta() {
               className="w-full p-2 bg-zinc-100 dark:bg-zinc-800 rounded-xl outline-none text-sm font-medium"
             >
               <option value="EFECTIVO">Efectivo</option>
-              <option value="QR">QR</option>
+              <option value="QR">QR (CodePay)</option>
               <option value="TRANSFERENCIA">Transf.</option>
               <option value="CREDITO">Crédito</option>
               <option value="OTRO">Otro</option>
             </select>
           </div>
-          <div>
-            <label className="text-xs text-zinc-500 mb-1 block">Recibí (Bs)</label>
-            <input
-              type="number"
-              placeholder="Ej. 100"
-              value={montoPagado}
-              onChange={(e) => setMontoPagado(e.target.value)}
-              className="w-full p-2 bg-zinc-100 dark:bg-zinc-800 rounded-xl outline-none text-sm font-medium text-right text-emerald-600 focus:ring-2 focus:ring-emerald-500"
-            />
-          </div>
+          {metodoPago !== 'QR' && (
+            <div>
+              <label className="text-xs text-zinc-500 mb-1 block">Recibí (Bs)</label>
+              <input
+                type="number"
+                placeholder="Ej. 100"
+                value={montoPagado}
+                onChange={(e) => setMontoPagado(e.target.value)}
+                className="w-full p-2 bg-zinc-100 dark:bg-zinc-800 rounded-xl outline-none text-sm font-medium text-right text-emerald-600 focus:ring-2 focus:ring-emerald-500"
+              />
+            </div>
+          )}
         </div>
 
-        {totales.cambio > 0 && (
+        {metodoPago === 'QR' && (
+          <div className="p-2.5 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl text-xs text-blue-700 dark:text-blue-300 flex items-start gap-2">
+            <span className="text-base shrink-0">📱</span>
+            <span>Al confirmar serás redirigido a CodePay. El cliente escanea el QR con su app bancaria y el sistema actualiza la venta automáticamente.</span>
+          </div>
+        )}
+
+        {metodoPago !== 'QR' && totales.cambio > 0 && (
           <div className="p-2.5 bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-xl flex justify-between font-bold text-sm">
             <span>Cambio:</span>
             <span>Bs {totales.cambio.toFixed(2)}</span>
@@ -442,15 +472,26 @@ export default function NuevaVenta() {
         <button
           onClick={finalizarVenta}
           disabled={guardando || carrito.length === 0}
-          className="w-full py-3.5 rounded-xl text-white font-black text-base bg-emerald-600 hover:bg-emerald-500 shadow-xl shadow-emerald-500/20 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+          className={`w-full py-3.5 rounded-xl text-white font-black text-base shadow-xl disabled:opacity-50 transition-all flex items-center justify-center gap-2 ${
+            metodoPago === 'QR'
+              ? 'bg-blue-600 hover:bg-blue-500 shadow-blue-500/20'
+              : 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-500/20'
+          }`}
         >
-          {guardando ? 'Procesando...' : (
-            <>
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>
-              </svg>
-              COBRAR Bs {totales.total.toFixed(2)}
-            </>
+          {guardando ? (metodoPago === 'QR' ? 'Generando QR...' : 'Procesando...') : (
+            metodoPago === 'QR' ? (
+              <>
+                <span className="text-lg">📱</span>
+                PAGAR CON QR — Bs {totales.total.toFixed(2)}
+              </>
+            ) : (
+              <>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>
+                </svg>
+                COBRAR Bs {totales.total.toFixed(2)}
+              </>
+            )
           )}
         </button>
       </div>
